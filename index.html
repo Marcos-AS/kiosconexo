@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <a href="compras.html">Registrar Compra</a>
+
+    <form action="" id="ingresar">
+    <label for="ean">EAN</label>
+    <input type="text" id="ean">
+
+    <label for="nombre">Nombre</label>
+    <input type="text" id="nombre" autofocus>
+
+    <label for="stock">Stock</label>
+    <input type="number" id="stock" min="0">
+
+    <label for="gramos">Gramos (opcional)</label>
+    <input type="number" name="" id="gramos" step="any">
+
+    <label for="categoria">Categoria</label>
+    <input type="text" id="categoria" list="listaCategorias">
+    <datalist id="listaCategorias"></datalist>
+    <input type="checkbox" id="fijarCategoria" title="Mantener esta categoría para el próximo ingreso"> Fijar categoría
+    
+    <label for="descripcion">Descripción (opcional)</label>
+    <input type="text" id="descripcion">
+    
+    <label for="marca">Marca</label>
+    <input type="text" name="" id="marca">
+    <datalist id="listaMarcas"></datalist>
+    <input type="checkbox" id="fijarMarca" title="Mantener esta marca para el próximo ingreso"> Fijar marca
+    <button form="ingresar" class="btn-ingresar">Ingresar</button>
+    </form>
+
+    <a href="ventas.html">Registrar Venta</a>
+    <hr><br>
+    <a href="ganancias.html">Ver Ganancias por Lote</a>
+    
+    <h1>Inventario</h1>
+
+    <label for="buscarEan">Buscar por EAN:</label>
+    <input type="text" id="buscarEan" placeholder="Ingrese EAN">
+    <button id="btnBuscarEan">Buscar</button>
+    <button id="btnLimpiarEan">Limpiar Búsqueda</button>
+
+    <label for="buscarNombre">Buscar por Nombre:</label>
+    <input type="text" id="buscarNombre" placeholder="Ingrese Nombre del Producto">
+    <button id="btnBuscarNombre">Buscar</button>
+    <button id="btnLimpiarNombre">Limpiar Búsqueda</button>
+
+    <label for="filtroCategoria">Filtrar por categoría</label>
+    <select id="filtroCategoria"></select>
+
+    <label for="filtroProveedor">Filtrar por proveedor</label>
+    <select name="" id="filtroProveedor">
+        <option value="">-- Mostrar todos --</option>
+    </select>
+
+    <label for="filtroMarca">Filtrar por marca</label>
+    <select id="filtroMarca">
+        <option value="">-- Mostrar todos --</option>
+    </select>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>EAN</th>
+                <th>Nombre</th>
+                <th>Stock</th>
+                <th>Precio de venta</th>
+                <th>Gramos</th>
+                <th>Descripción</th>
+                <th>Marca</th>
+                <th>Categoría</th>
+                <th>Precio proveedor</th>
+            </tr>
+        </thead>
+        <tbody id="lista-productos">
+
+        </tbody>
+    </table>
+
+    <script>
+        const inputMarca = document.getElementById('marca');
+        const datalist = document.getElementById('listaMarcas');
+        const botonAgregar = document.getElementById('agregarBtn');
+
+        inputMarca.addEventListener('input', async () => {
+            const texto = inputMarca.value;
+
+            if (texto.length < 1) {
+                datalist.innerHTML = '';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/buscar-marcas?q=${encodeURIComponent(texto)}`);
+                const marcas = await res.json();
+
+                datalist.innerHTML = ''; // Limpiar sugerencias
+
+                marcas.forEach(marca => {
+                    const option = document.createElement('option');
+                    option.value = marca;
+                    datalist.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Error al buscar marcas:', err);
+            }
+        });
+
+    const form = document.getElementById('ingresar');
+    const lista = document.getElementById('lista-productos');
+    const fijarCategoriaCheckbox = document.getElementById('fijarCategoria');
+    const fijarMarcaCheckbox = document.getElementById('fijarMarca');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const data = {
+            ean: document.getElementById('ean').value.trim(),
+            nombre: document.getElementById('nombre').value.trim(),
+            stock: parseInt(document.getElementById('stock').value) || 0,
+            gramos: document.getElementById('gramos').value.trim(),
+            descripcion: document.getElementById('descripcion').value.trim(),
+            marca: document.getElementById('marca').value.trim(),
+            categoria: document.getElementById('categoria').value.trim()
+        };
+
+        try {
+            const res = await fetch('/productos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const mensaje = await res.text();
+            alert(mensaje);
+
+            if (res.ok) {
+                await cargarProductos();
+                cargarCategoriasSelect();
+                cargarMarcasFiltro();
+
+                const categoriaFija = fijarCategoriaCheckbox.checked;
+                const marcaFija = fijarMarcaCheckbox.checked;
+
+                const categoriaValue = fijarCategoriaCheckbox.checked ? data.categoria : '';
+                const marcaValue = fijarMarcaCheckbox.checked ? data.marca : '';
+
+                form.reset();
+
+                document.getElementById('categoria').value = categoriaValue;
+                document.getElementById('marca').value = marcaValue;
+
+                fijarCategoriaCheckbox.checked = categoriaFija;
+                fijarMarcaCheckbox.checked = marcaFija;
+                document.getElementById('nombre').focus();
+            }
+        } catch (err) {
+            console.error('Error al enviar producto:', err);
+            alert('Error al enviar producto');
+        }
+    });
+
+    async function cargarCategorias() {
+        try {
+        const res = await fetch('/categorias');
+        const data = await res.json();
+
+        const lista = document.getElementById('listaCategorias');
+        lista.innerHTML = '';
+        data.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.nombre;
+            lista.appendChild(option);
+        });
+        } catch (e) {
+        console.error('Error al cargar categorías:', e);
+        }
+    }
+
+    
+    async function cargarProductos() {
+        try {
+            const res = await fetch('/productos');
+            const productos = await res.json();
+            
+            mostrarProductos(productos);
+        } catch (e) {
+            console.error('Error al cargar productos:', e);
+        }
+    }
+
+    function cargarCategoriasSelect() {
+        fetch('/categorias')
+            .then(res => res.json())
+            .then(data => {
+                const select = document.getElementById('filtroCategoria');
+                select.innerHTML = '<option value="">-- Mostrar todos --</option>';
+                data.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.nombre;
+                    select.appendChild(option);
+                });
+            });
+    }
+
+    async function cargarMarcasFiltro() {
+        try {
+            const res = await fetch('/marcas'); // Nueva ruta para obtener todas las marcas
+            const data = await res.json();
+            const select = document.getElementById('filtroMarca');
+            select.innerHTML = '<option value="">-- Mostrar todos --</option>';
+            data.forEach(marca => {
+                const option = document.createElement('option');
+                option.value = marca.id;
+                option.textContent = marca.nombre;
+                select.appendChild(option);
+            });
+        } catch (e) {
+            console.error('Error al cargar marcas para el filtro:', e);
+        }
+    }
+
+    // Mostrar productos en la tabla (función reutilizable)
+function mostrarProductos(productos) {
+    const tbody = document.getElementById('lista-productos');
+    tbody.innerHTML = '';
+
+    // Cargar proveedores y todos los precios
+    Promise.all([
+        fetch('/proveedores').then(res => res.json()),
+        fetch('/precios-todos').then(res => res.json())
+    ]).then(([proveedores, preciosTodos]) => {
+        productos.forEach(prod => {
+            const tr = document.createElement('tr');
+
+            // Opciones de proveedor
+            let proveedorOptions = '<option value="">--Seleccione--</option>';
+            proveedores.forEach(prov => {
+                proveedorOptions += `<option value="${prov.id}">${prov.nombre}</option>`;
+            });
+
+            // Precio inicial (puede ser vacío)
+            let precioInicial = '';
+
+            tr.innerHTML = `
+                <td>
+                    ${prod.ean}
+                    <button onclick="pegarEAN('${prod.ean}')">📋</button>
+                </td>
+                <td>${prod.nombre}</td>
+                <td>
+                <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
+                        <button onclick="actualizarStock(this)">💾</button>
+                </td>
+
+                <td>
+                <input type="number" min="0" step="0.01" value="${prod.precio_venta ?? ''}" data-ean="${prod.ean}" class="input-precio-venta">
+                <button onclick="guardarPrecioVenta(this)">💾</button>
+                </td>
+
+                <td>
+                    <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
+                    <button onclick="guardarGramos(this)">💾</button>
+                </td>
+                <td>${prod.descripcion || ''}</td>
+                <td>
+                    <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 100px">
+                    <button onclick="guardarMarca(this)">💾</button>
+                </td>
+                <td>${prod.categoria_nombre}</td>
+                <td>
+                    <input type="number" step="0.01" min="0" value="${precioInicial}" data-ean="${prod.ean}" placeholder="Precio"/>
+                    <select class="proveedor-select">
+                        ${proveedorOptions}
+                    </select>
+                    <button onclick="guardarPrecio(this)">💾</button>
+                    <button onclick="eliminarPrecio(this)" title="Eliminar precio" style="color:red;">🗑️</button>
+                </td>
+            `;
+
+            // Lógica para actualizar el precio al cambiar proveedor
+            const precioInput = tr.querySelector('input[type="number"][placeholder="Precio"]');
+            const proveedorSelect = tr.querySelector('select.proveedor-select');
+
+            proveedorSelect.addEventListener('change', function () {
+                const proveedorId = this.value;
+                const precioObj = preciosTodos.find(
+                    p => p.producto === prod.ean && String(p.proveedor) === proveedorId
+                );
+                precioInput.value = precioObj ? precioObj.precio : '';
+            });
+
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+async function cargarProveedoresFiltro() {
+    try {
+        const res = await fetch('/proveedores');
+        const data = await res.json();
+        const select = document.getElementById('filtroProveedor');
+        select.innerHTML = '<option value="">-- Mostrar todos --</option>';
+        data.forEach(prov => {
+            const option = document.createElement('option');
+            option.value = prov.id;
+            option.textContent = prov.nombre;
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Error al cargar proveedores (filtro):', e);
+    }
+}
+
+function pegarEAN(ean) {
+    const input = document.getElementById('productoPrecio');
+    input.value = ean;
+    input.focus();
+    input.select(); // Opcional: selecciona el texto para que se sobrescriba fácil
+}
+
+function borrarPrecio() {
+    document.getElementById('precio').value = '';
+    document.getElementById('precio').focus();
+}
+
+async function guardarMarca(button) {
+    const input = button.previousElementSibling;
+    const nuevaMarca = input.value.trim();
+    const ean = input.dataset.ean;
+
+    if (!nuevaMarca) {
+        alert('La marca no puede estar vacía.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/productos/${ean}/marca`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nombreMarca: nuevaMarca })
+        });
+
+        const msg = await res.text();
+        alert(msg);
+
+        if (res.ok) {
+            await filtrarProductos(); // Refresca la tabla si hay filtros aplicados
+        }
+    } catch (err) {
+        console.error('Error al actualizar la marca:', err);
+        alert('Error al actualizar la marca');
+    }
+}
+
+async function guardarGramos(button) {
+    const input = button.previousElementSibling;
+    const gramos = parseFloat(input.value);
+    const ean = input.dataset.ean;
+
+    if (isNaN(gramos)) {
+        alert('Los gramos deben ser un número válido.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/productos/${ean}/gramos`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ gramos })
+        });
+
+        const msg = await res.text();
+        alert(msg);
+
+        if (res.ok) {
+            await filtrarProductos(); // o recargarTablaProductos();
+        }
+    } catch (err) {
+        console.error('Error al actualizar los gramos:', err);
+        alert('Error al actualizar los gramos');
+    }
+}
+
+async function guardarPrecio(button) {
+    const td = button.parentElement;
+    const input = td.querySelector('input[type="number"]');
+    const select = td.querySelector('select.proveedor-select');
+    const precio = parseFloat(input.value.trim());
+    const ean = input.dataset.ean;
+    const proveedorId = select.value;
+
+    if (!proveedorId) {
+        alert('Debe seleccionar un proveedor.');
+        return;
+    }
+
+    try {
+        const res = await fetch('/precios', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                producto: ean,
+                proveedor: proveedorId,
+                precio
+            })
+        });
+
+        const msg = await res.text();
+        alert(msg);
+
+        if (res.ok) {
+            input.value = precio;
+            //await filtrarProductos(); // Opcional: refrescar tabla
+        }
+    } catch (err) {
+        console.error('Error al guardar precio:', err);
+        alert('Error al guardar precio');
+    }
+}
+
+async function guardarPrecioVenta(button) {
+    const td = button.parentElement;
+    const input = td.querySelector('.input-precio-venta');
+    const precioVenta = parseFloat(input.value.trim());
+    const ean = input.dataset.ean;
+
+    if (isNaN(precioVenta) || precioVenta < 0) {
+        alert('Ingrese un precio de venta válido.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/productos/${ean}/precio-venta`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ precio_venta: precioVenta })
+        });
+        const msg = await res.text();
+        alert(msg);
+    } catch (err) {
+        alert('Error al guardar el precio de venta');
+    }
+}
+
+async function eliminarPrecio(button) {
+    const td = button.parentElement;
+    const input = td.querySelector('input[type="number"]');
+    const select = td.querySelector('select.proveedor-select');
+    const ean = input.dataset.ean;
+    const proveedorId = select.value;
+
+    if (!proveedorId) {
+        alert('Seleccione un proveedor para eliminar el precio.');
+        return;
+    }
+
+    if (!confirm('¿Seguro que desea eliminar el precio para este proveedor?')) return;
+
+    try {
+        const res = await fetch(`/precios`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ producto: ean, proveedor: proveedorId })
+        });
+        const msg = await res.text();
+        alert(msg);
+        if (res.ok) {
+            input.value = '';
+        }
+    } catch (err) {
+        console.error('Error al eliminar precio:', err);
+        alert('Error al eliminar precio');
+    }
+}
+
+const inputBuscarNombre = document.getElementById('buscarNombre');
+const btnBuscarNombre = document.getElementById('btnBuscarNombre');
+const btnLimpiarNombre = document.getElementById('btnLimpiarNombre');
+
+async function filtrarProductos() {
+    const categoriaId = document.getElementById('filtroCategoria').value;
+    const proveedorId = document.getElementById('filtroProveedor').value;
+    const marcaId = document.getElementById('filtroMarca').value;
+    const eanBuscado = document.getElementById('buscarEan').value.trim();
+    const nombreBuscado = inputBuscarNombre.value.trim();
+
+    let url = '/productos';
+    const params = new URLSearchParams();
+
+    if (categoriaId) {
+        params.append('categoriaId', categoriaId);
+    }
+    if (proveedorId) {
+        params.append('proveedorId', proveedorId);
+    }
+    if (marcaId) { // Añadir el parámetro de marca si está seleccionado
+        params.append('marcaId', marcaId);
+    }
+    if (eanBuscado) {
+        params.append('ean', eanBuscado);
+    }
+    if (nombreBuscado) {
+        params.append('nombre', nombreBuscado);
+    }
+
+    if (params.toString()) {
+        url += `?${params.toString()}`;
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+    mostrarProductos(data);
+}
+
+async function actualizarStock(boton) {
+    const input = boton.previousElementSibling;
+    const stock = input.value;
+    const ean = input.dataset.ean;
+
+    try {
+        const res = await fetch(`/productos/${ean}/stock`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ stock: parseInt(stock) })
+        });
+
+        const result = await res.json();
+        alert(result.mensaje);
+    } catch (error) {
+        console.error('Error al actualizar stock:', error);
+        alert('Error al actualizar stock');
+    }
+}
+
+
+document.getElementById('filtroCategoria').addEventListener('change', filtrarProductos);
+document.getElementById('filtroProveedor').addEventListener('change', filtrarProductos);
+document.getElementById('filtroMarca').addEventListener('change', filtrarProductos);
+
+document.getElementById('btnBuscarEan').addEventListener('click', filtrarProductos);
+document.getElementById('btnLimpiarEan').addEventListener('click', () => {
+    document.getElementById('buscarEan').value = ''; // Limpiar el campo
+    filtrarProductos(); // Volver a cargar los productos sin el filtro de EAN
+});
+// También puedes querer que al presionar enter en el campo EAN se busque
+document.getElementById('buscarEan').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault(); // Evita que el formulario se envíe
+        filtrarProductos();
+    }
+});
+
+btnBuscarNombre.addEventListener('click', filtrarProductos);
+
+btnLimpiarNombre.addEventListener('click', () => {
+    inputBuscarNombre.value = ''; // Limpiar el campo
+    filtrarProductos(); // Volver a cargar los productos sin el filtro de nombre
+});
+
+inputBuscarNombre.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault(); // Evita que el formulario se envíe si el input está dentro de un form
+        filtrarProductos();
+    }
+});
+
+document.getElementById('ingresar').addEventListener('keydown', function (e) {
+    const esEnter = e.key === 'Enter';
+    const esInput = e.target.tagName === 'INPUT';
+    const esBotonSubmit = e.target.type === 'submit';
+
+    // Si se presionó Enter en un input (no en el botón), cancelar el envío
+    if (esEnter && esInput && !esBotonSubmit) {
+        e.preventDefault();
+    }
+});
+    
+    cargarCategorias();
+    cargarCategoriasSelect();
+    cargarProveedoresFiltro();
+    cargarMarcasFiltro();
+    cargarProductos();
+
+    </script>
+</body>
+</html>

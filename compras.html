@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Compra</title>
+</head>
+<body>
+    <h1>Registrar Compra a Proveedor</h1>
+    <form id="form-compra">
+        <label>Proveedor:</label>
+        <select id="proveedorSelect"></select>
+        <br>
+        <label>Buscar producto:</label>
+        <input type="text" id="buscarProducto" placeholder="Nombre o EAN">
+        <br>
+        <label>Producto:</label>
+        <select id="productoSelect"></select>
+        <br>
+        <label>Cantidad:</label>
+        <input type="number" id="cantidad" min="1" value="1">
+        <br>
+        <label>Precio de compra:</label>
+        <input type="number" id="precioCompra" min="0" step="0.01">
+        <br>
+        <button type="button" id="agregarCompra">Registrar Compra</button>
+    </form>
+    <h2>Compras recientes</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Proveedor</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio de compra</th>
+            </tr>
+        </thead>
+        <tbody id="comprasRecientes"></tbody>
+    </table>
+    <script>
+        let productosGlobal = [];
+
+        async function cargarProveedores() {
+            const res = await fetch('/proveedores');
+            const proveedores = await res.json();
+            const select = document.getElementById('proveedorSelect');
+            select.innerHTML = '';
+            proveedores.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.nombre;
+                select.appendChild(option);
+            });
+
+            // Seleccionar el proveedor guardado si existe
+            const proveedorGuardado = localStorage.getItem('proveedorSeleccionado');
+            if (proveedorGuardado) {
+                select.value = proveedorGuardado;
+            }
+            // Guardar el proveedor seleccionado cuando cambie
+            select.onchange = function() {
+                localStorage.setItem('proveedorSeleccionado', this.value);
+            };
+        }
+
+        async function cargarProductos() {
+            const res = await fetch('/productos');
+            productosGlobal = await res.json();
+            renderSelectProductos();
+        }
+
+        function renderSelectProductos(filtro = '') {
+            const select = document.getElementById('productoSelect');
+            select.innerHTML = '';
+            productosGlobal
+                .filter(p =>
+                    p.nombre.toLowerCase().includes(filtro.toLowerCase()) ||
+                    p.ean.includes(filtro)
+                )
+                .forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.ean;
+                    option.textContent = `${p.nombre} (EAN: ${p.ean}, Marca: ${p.marca_nombre ?? '-'}, Gramos: ${p.gramos ?? '-'})`;
+                    select.appendChild(option);
+                });
+        }
+
+        async function cargarCompras() {
+            const res = await fetch('/compras');
+            const compras = await res.json();
+            const tbody = document.getElementById('comprasRecientes');
+            tbody.innerHTML = '';
+            compras.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${c.fecha}</td>
+                    <td>${c.proveedor_nombre}</td>
+                    <td>${c.producto_nombre}</td>
+                    <td>${c.cantidad}</td>
+                    <td>${c.precio_compra}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('agregarCompra').onclick = async function() {
+            alert('Registrando compra...');
+            const proveedor = document.getElementById('proveedorSelect').value;
+            const producto = document.getElementById('productoSelect').value;
+            const cantidad = parseInt(document.getElementById('cantidad').value);
+            const precioCompra = parseFloat(document.getElementById('precioCompra').value);
+
+            if (!proveedor || !producto || !cantidad || !precioCompra) {
+                alert('Completa todos los campos');
+                return;
+            }
+
+            const res = await fetch('/compras', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ proveedor, producto, cantidad, precio_compra: precioCompra })
+            });
+            const msg = await res.text();
+            alert(msg);
+            alert('Compra registrada correctamente');
+            cargarCompras();
+            cargarProductos(); // Para actualizar el stock en el select
+        };
+
+        document.getElementById('buscarProducto').addEventListener('input', function() {
+            renderSelectProductos(this.value.trim());
+        });
+
+        cargarProveedores();
+        cargarProductos();
+        cargarCompras();
+    </script>
+</body>
+</html>

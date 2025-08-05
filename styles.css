@@ -1,0 +1,9 @@
+.btn-ingresar {
+    display: block;
+    margin: 0 auto;
+}
+
+#descripcion,
+label[for="descripcion"] {
+    display:none;
+}

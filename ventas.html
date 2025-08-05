@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Venta</title>
+</head>
+<body>
+    <h1>Registrar Venta</h1>
+    <form id="form-venta">
+        <label>Buscar por EAN:</label>
+        <input type="text" id="buscarEanVenta" placeholder="Ingrese EAN o nombre">
+        <br>
+        <label>Producto:</label>
+        <select id="productoSelect"></select>
+        <label>Cantidad:</label>
+        <input type="number" id="cantidad" min="1" value="1">
+        <br>
+        <label>Fecha y hora de la venta:</label>
+        <input type="datetime-local" id="fechaVenta">
+        <br>
+        <button type="button" id="agregarProducto">Agregar</button>
+    </form>
+    <h2>Detalle de la venta</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+                <th>Subtotal</th>
+                <th>Quitar</th>
+            </tr>
+        </thead>
+        <tbody id="detalleVenta"></tbody>
+    </table>
+    <h3>Total: $<span id="totalVenta">0</span></h3>
+    <button id="registrarVenta">Registrar Venta</button>
+
+    <h2>Ventas realizadas</h2>
+    <label for="filtroFecha">Filtrar por fecha:</label>
+    <input type="date" id="filtroFecha">
+    <button id="btnFiltrarFecha">Filtrar</button>
+    <button id="btnLimpiarFecha">Limpiar</button>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio Venta</th>
+                <th>Precio Compra</th>
+            </tr>
+        </thead>
+        <tbody id="ventasRealizadas"></tbody>
+    </table>
+
+    <script>
+        let productos = [];
+        let detalle = [];
+
+        async function cargarProductos() {
+            const res = await fetch('/productos');
+            productos = await res.json();
+            renderSelectProductos();
+        }
+
+        function renderSelectProductos(filtro = '') {
+            const select = document.getElementById('productoSelect');
+            select.innerHTML = '';
+            productos
+                .filter(p =>
+                    p.ean.includes(filtro) ||
+                    p.nombre.toLowerCase().includes(filtro.toLowerCase())
+                )
+                .forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.ean;
+                    option.textContent = `${p.nombre} (EAN: ${p.ean}, Stock: ${p.stock ?? 0}, Gramos: ${p.gramos ?? ''})`;
+                    select.appendChild(option);
+                });
+        }
+
+        document.getElementById('buscarEanVenta').addEventListener('input', function() {
+            renderSelectProductos(this.value.trim());
+        });
+
+        function renderDetalle() {
+            const tbody = document.getElementById('detalleVenta');
+            tbody.innerHTML = '';
+            let total = 0;
+            detalle.forEach((item, idx) => {
+                const prod = productos.find(p => p.ean === item.ean);
+                const precio = prod.precio_venta ?? 0;
+                const subtotal = precio * item.cantidad;
+                total += subtotal;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${prod.nombre}</td>
+                    <td>${item.cantidad}</td>
+                    <td>${precio}</td>
+                    <td>${subtotal.toFixed(2)}</td>
+                    <td><button onclick="quitarProducto(${idx})">Quitar</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('totalVenta').textContent = total.toFixed(2);
+        }
+
+        window.quitarProducto = function(idx) {
+            detalle.splice(idx, 1);
+            renderDetalle();
+        }
+
+        document.getElementById('agregarProducto').onclick = function() {
+            const ean = document.getElementById('productoSelect').value;
+            const cantidad = parseInt(document.getElementById('cantidad').value);
+            if (!ean || cantidad < 1) return;
+            const existente = detalle.find(d => d.ean === ean);
+            if (existente) {
+                existente.cantidad += cantidad;
+            } else {
+                detalle.push({ ean, cantidad });
+            }
+            renderDetalle();
+        };
+
+        async function cargarVentasRealizadas() {
+            const fecha = document.getElementById('filtroFecha').value;
+            let url = '/ventas';
+            if (fecha) {
+                url += '?fecha=' + encodeURIComponent(fecha);
+            }
+            const res = await fetch(url);
+            const ventas = await res.json();
+            const tbody = document.getElementById('ventasRealizadas');
+            tbody.innerHTML = '';
+            ventas.forEach(v => {
+                v.detalle.forEach(d => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${new Date(v.fecha).toLocaleString()}</td>
+                        <td>$${v.total}</td>
+                        <td>${d.producto_nombre || d.producto}</td>
+                        <td>${d.cantidad}</td>
+                        <td>${d.precio_unitario}</td>
+                        <td>${d.precio_compra !== undefined && d.precio_compra !== null ? d.precio_compra : '-'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        document.getElementById('registrarVenta').onclick = async function() {
+            const fechaVenta = document.getElementById('fechaVenta').value;
+            if (detalle.length === 0) {
+                alert('Agrega al menos un producto');
+                return;
+            }
+            const res = await fetch('/ventas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productos: detalle, fecha: fechaVenta })
+            });
+            const msg = await res.text();
+            alert(msg);
+            detalle = [];
+            renderDetalle();
+            cargarProductos();
+            cargarVentasRealizadas();
+        };
+
+        cargarProductos();
+        cargarVentasRealizadas();
+
+        function setFechaActual() {
+            const ahora = new Date();
+            const year = ahora.getFullYear();
+            const month = String(ahora.getMonth() + 1).padStart(2, '0');
+            const day = String(ahora.getDate()).padStart(2, '0');
+            const hours = String(ahora.getHours()).padStart(2, '0');
+            const minutes = String(ahora.getMinutes()).padStart(2, '0');
+            // Formato: yyyy-MM-ddTHH:mm
+            const local = `${year}-${month}-${day}T${hours}:${minutes}`;
+            document.getElementById('fechaVenta').value = local;
+        }
+        setFechaActual();
+
+        document.getElementById('btnFiltrarFecha').onclick = cargarVentasRealizadas;
+        document.getElementById('btnLimpiarFecha').onclick = function() {
+            document.getElementById('filtroFecha').value = '';
+            cargarVentasRealizadas();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ganancias por Lote</title>
+</head>
+<body>
+    <h1>Ganancias por Lote de Compra</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID Compra</th>
+                <th>Fecha</th>
+                <th>Producto</th>
+                <th>Precio Compra</th>
+                <th>Cantidad Vendida</th>
+                <th>Precio Venta Promedio</th>
+                <th>Ganancia</th>
+            </tr>
+        </thead>
+        <tbody id="tablaGanancias"></tbody>
+    </table>
+    <script>
+        async function cargarGanancias() {
+            const res = await fetch('/ganancias-por-lote');
+            const data = await res.json();
+            const tbody = document.getElementById('tablaGanancias');
+            tbody.innerHTML = '';
+            data.forEach(g => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${g.compra_id}</td>
+                    <td>${new Date(g.fecha).toLocaleString()}</td>
+                    <td>${g.producto}</td>
+                    <td>${g.precio_compra}</td>
+                    <td>${g.cantidad_vendida ?? 0}</td>
+                    <td>${g.precio_venta_promedio ? g.precio_venta_promedio.toFixed(2) : '-'}</td>
+                    <td>${g.ganancia ? g.ganancia.toFixed(2) : '0.00'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        cargarGanancias();
+    </script>
+</body>
+</html>
