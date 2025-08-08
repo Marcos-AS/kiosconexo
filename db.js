@@ -243,6 +243,36 @@ app.put('/productos/:ean/marca', (req, res) => {
     });
 });
 
+app.put('/productos/:ean/categoria', (req, res) => {
+    const { ean } = req.params;
+    const { nombreCategoria } = req.body;
+
+    if (!nombreCategoria) {
+        return res.status(400).json({ mensaje: 'El nombre de la categoría es obligatorio.' });
+    }
+
+    // Buscar si la categoría ya existe
+    connection.query('SELECT id FROM categoria WHERE nombre = ?', [nombreCategoria], (err, results) => {
+        if (err) return res.status(500).json({ mensaje: 'Error al buscar la categoría.' });
+
+        const actualizarCategoria = (categoriaId) => {
+            connection.query('UPDATE producto SET categoriaId = ? WHERE ean = ?', [categoriaId, ean], (err2) => {
+                if (err2) return res.status(500).json({ mensaje: 'Error al actualizar la categoría del producto.' });
+                res.json({ mensaje: 'Categoría actualizada correctamente.' });
+            });
+        };
+
+        if (results.length > 0) {
+            actualizarCategoria(results[0].id);
+        } else {
+            connection.query('INSERT INTO categoria (nombre) VALUES (?)', [nombreCategoria], (err2, resultInsert) => {
+                if (err2) return res.status(500).json({ mensaje: 'Error al insertar la nueva categoría.' });
+                actualizarCategoria(resultInsert.insertId);
+            });
+        }
+    });
+});
+
 app.put('/productos/:ean/gramos', (req, res) => {
     const { ean } = req.params;
     const { gramos } = req.body;
