@@ -69,6 +69,10 @@
         <option value="">-- Mostrar todos --</option>
     </select>
 
+    <label>
+    <input type="checkbox" id="filtroStock"> Mostrar solo productos con stock
+    </label>
+
     <table border="1">
         <thead>
             <tr>
@@ -195,16 +199,29 @@
     }
 
     
-    async function cargarProductos() {
-        try {
-            const res = await fetch('/productos');
-            const productos = await res.json();
-            
-            mostrarProductos(productos);
-        } catch (e) {
-            console.error('Error al cargar productos:', e);
+    let filtroStockActivo = false;
+
+document.getElementById('filtroStock').addEventListener('change', function() {
+    filtroStockActivo = this.checked;
+    cargarProductos();
+});
+
+async function cargarProductos() {
+    try {
+        const res = await fetch('/productos');
+        let productos = await res.json();
+
+        // Si el checkbox está marcado, filtramos
+        if (filtroStockActivo) {
+            productos = productos.filter(prod => prod.stock > 0);
         }
+
+        mostrarProductos(productos);
+    } catch (e) {
+        console.error('Error al cargar productos:', e);
     }
+}
+
 
     function cargarCategoriasSelect() {
         fetch('/categorias')
