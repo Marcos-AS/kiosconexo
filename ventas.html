@@ -65,21 +65,25 @@
             renderSelectProductos();
         }
 
-        function renderSelectProductos(filtro = '') {
-            const select = document.getElementById('productoSelect');
-            select.innerHTML = '';
-            productos
-                .filter(p =>
-                    p.ean.includes(filtro) ||
-                    p.nombre.toLowerCase().includes(filtro.toLowerCase())
-                )
-                .forEach(p => {
-                    const option = document.createElement('option');
-                    option.value = p.ean;
-                    option.textContent = `${p.nombre} (EAN: ${p.ean}, Stock: ${p.stock ?? 0}, Gramos: ${p.gramos ?? ''})`;
-                    select.appendChild(option);
-                });
-        }
+function renderSelectProductos(filtro = '') {
+    const select = document.getElementById('productoSelect');
+    select.innerHTML = '';
+    productos
+        .filter(p =>
+            (p.stock ?? 0) > 0 && // ✅ Mostrar solo stock mayor a 0
+            (
+                p.ean.includes(filtro) ||
+                p.nombre.toLowerCase().includes(filtro.toLowerCase())
+            )
+        )
+        .forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.ean;
+            option.textContent = `${p.nombre} (EAN: ${p.ean}, Stock: ${p.stock ?? 0}, Gramos: ${p.gramos ?? ''})`;
+            select.appendChild(option);
+        });
+}
+
 
         document.getElementById('buscarEanVenta').addEventListener('input', function() {
             renderSelectProductos(this.value.trim());
@@ -126,30 +130,58 @@
         };
 
         async function cargarVentasRealizadas() {
-            const fecha = document.getElementById('filtroFecha').value;
-            let url = '/ventas';
-            if (fecha) {
-                url += '?fecha=' + encodeURIComponent(fecha);
-            }
-            const res = await fetch(url);
-            const ventas = await res.json();
-            const tbody = document.getElementById('ventasRealizadas');
-            tbody.innerHTML = '';
-            ventas.forEach(v => {
-                v.detalle.forEach(d => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${new Date(v.fecha).toLocaleString()}</td>
-                        <td>$${v.total}</td>
-                        <td>${d.producto_nombre || d.producto}</td>
-                        <td>${d.cantidad}</td>
-                        <td>${d.precio_unitario}</td>
-                        <td>${d.precio_compra !== undefined && d.precio_compra !== null ? d.precio_compra : '-'}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+    const fecha = document.getElementById('filtroFecha').value;
+    let url = '/ventas';
+    if (fecha) {
+        url += '?fecha=' + encodeURIComponent(fecha);
+    }
+    const res = await fetch(url);
+    const ventas = await res.json();
+    const tbody = document.getElementById('ventasRealizadas');
+    tbody.innerHTML = '';
+
+    ventas.forEach((v, ventaIndex) => {
+        // Fila principal (venta)
+        const trVenta = document.createElement('tr');
+        trVenta.style.backgroundColor = '#f0f0f0';
+        trVenta.style.cursor = 'pointer';
+        trVenta.innerHTML = `
+            <td>${new Date(v.fecha).toLocaleString()}</td>
+            <td>$${v.total}</td>
+            <td colspan="4"><strong>Ver productos ▼</strong></td>
+        `;
+        tbody.appendChild(trVenta);
+
+        // Filas de detalle (productos)
+        v.detalle.forEach(d => {
+            const trDetalle = document.createElement('tr');
+            trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
+            trDetalle.style.display = 'none'; // oculto al inicio
+            trDetalle.innerHTML = `
+                <td></td>
+                <td></td>
+                <td>${d.producto_nombre || d.producto}</td>
+                <td>${d.cantidad}</td>
+                <td>${d.precio_unitario}</td>
+                <td>${d.precio_compra !== undefined && d.precio_compra !== null ? d.precio_compra : '-'}</td>
+            `;
+            tbody.appendChild(trDetalle);
+        });
+
+        // Toggle de mostrar/ocultar productos
+        trVenta.addEventListener('click', () => {
+            const filasDetalle = document.querySelectorAll(`.detalle-venta-${ventaIndex}`);
+            const mostrando = filasDetalle[0].style.display === '';
+            filasDetalle.forEach(fila => {
+                fila.style.display = mostrando ? 'none' : '';
             });
-        }
+            // Cambiar el texto de la flecha
+            const flecha = trVenta.querySelector('td[colspan] strong');
+            flecha.textContent = mostrando ? 'Ver productos ▼' : 'Ocultar productos ▲';
+        });
+    });
+}
+
 
         document.getElementById('registrarVenta').onclick = async function() {
             const fechaVenta = document.getElementById('fechaVenta').value;

@@ -101,11 +101,18 @@
                 tr.innerHTML = `
                     <td>${prod.nombre}</td>
                     <td>${prod.categoria_nombre || ''}</td>
-                    <td>${prod.gramos || ''}</td>
+                    <td>
+                        <input type="number" min="0" value="${prod.gramos || ''}" style="width:70px"
+                            onchange="cambiarGramos(${idx}, this.value)">
+                    </td>
                     <td><button onclick="quitarProducto(${idx})">Quitar</button></td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        window.cambiarGramos = function(idx, nuevoValor) {
+            lista[idx].gramos = nuevoValor;
         }
 
         window.quitarProducto = function(idx) {

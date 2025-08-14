@@ -512,7 +512,7 @@ app.get('/compras', (req, res) => {
          JOIN proveedor p ON c.proveedor = p.id
          JOIN producto pr ON c.producto = pr.ean
          ORDER BY c.fecha DESC
-         LIMIT 20`,
+         LIMIT 95`,
         (err, results) => {
             if (err) return res.status(500).send('Error al obtener compras');
             res.json(results);
