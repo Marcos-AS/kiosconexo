@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Registrar Venta</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <h1>Registrar Venta</h1>
@@ -15,8 +16,8 @@
         <label>Cantidad:</label>
         <input type="number" id="cantidad" min="1" value="1">
         <br>
-        <label>Fecha y hora de la venta:</label>
-        <input type="datetime-local" id="fechaVenta">
+        <label class="hidden">Fecha y hora de la venta:</label>
+        <input type="datetime-local" id="fechaVenta" class="hidden">
         <br>
         <button type="button" id="agregarProducto">Agregar</button>
     </form>
@@ -129,7 +130,7 @@ function renderSelectProductos(filtro = '') {
             renderDetalle();
         };
 
-        async function cargarVentasRealizadas() {
+async function cargarVentasRealizadas() {
     const fecha = document.getElementById('filtroFecha').value;
     let url = '/ventas';
     if (fecha) {

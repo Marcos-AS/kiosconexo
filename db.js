@@ -346,130 +346,90 @@ app.put('/productos/:ean/stock', (req, res) => {
 // Tabla ventas: id, fecha, total
 // Tabla detalle_venta: id, venta_id, producto, cantidad, precio_unitario
 
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'root',        // 👈 tu usuario
+  password: 'notalokos',    // 👈 tu password
+  database: 'inventario',  // 👈 tu base de datos
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+}).promise();
+
 app.post('/ventas', async (req, res) => {
-    const { productos, fecha } = req.body;
-    if (!productos || !Array.isArray(productos) || productos.length === 0) {
-        return res.status(400).send('No hay productos en la venta');
+  const { productos } = req.body; // productos = [{ ean, cantidad }]
+  console.log('Productos recibidos:', productos);
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let total = 0;
+
+    // Insertar venta temporal con total 0, lo actualizamos después
+    const [ventaResult] = await connection.query(
+      'INSERT INTO ventas (fecha, total) VALUES (NOW(), 0)'
+    );
+    const ventaId = ventaResult.insertId;
+
+    for (const { ean, cantidad } of productos) {
+      // Obtener stock y precio_venta del producto
+      const [productosDB] = await connection.query(
+        'SELECT stock, precio_venta FROM producto WHERE ean = ?',
+        [ean]
+      );
+      if (productosDB.length === 0) throw new Error(`Producto ${ean} no existe`);
+      const { stock, precio_venta } = productosDB[0];
+
+      if (stock < cantidad) throw new Error(`Stock insuficiente para el producto ${ean}`);
+
+      // Tomar precio_compra más reciente
+      const [comprasDB] = await connection.query(
+        'SELECT id, precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
+        [ean]
+      );
+      const compraId = comprasDB.length > 0 ? comprasDB[0].id : null;
+      const precioCompra = comprasDB.length > 0 ? comprasDB[0].precio_compra : null;
+
+      const subtotal = cantidad * precio_venta;
+      total += subtotal;
+
+      // Insertar detalle_venta
+      await connection.query(
+        `INSERT INTO detalle_venta
+          (venta_id, producto, cantidad, precio_unitario, compra_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [ventaId, ean, cantidad, precio_venta, compraId]
+      );
+
+      // Actualizar stock
+      await connection.query(
+        'UPDATE producto SET stock = stock - ? WHERE ean = ?',
+        [cantidad, ean]
+      );
     }
 
-    const fechaVenta = fecha ? new Date(fecha) : new Date();
-
-    // 1. Registrar la venta (cabecera)
-    connection.query(
-        'INSERT INTO ventas (fecha, total) VALUES (?, ?)',
-        [fechaVenta, 0], // El total se actualizará después
-        (err2, ventaResult) => {
-            if (err2) return res.status(500).send('Error al registrar venta');
-            const ventaId = ventaResult.insertId;
-
-            let totalVenta = 0;
-            let pendientes = productos.length;
-            let errorOcurrido = false;
-
-            // Procesar cada producto vendido
-            productos.forEach(p => {
-                const { ean, cantidad } = p;
-                let cantidadRestante = cantidad;
-
-                // 2. Obtener los lotes (compras) disponibles para este producto, ordenados por fecha (FIFO)
-                connection.query(
-                    `SELECT id, cantidad, precio_compra, 
-                        (cantidad - IFNULL((
-                            SELECT SUM(dv.cantidad) FROM detalle_venta dv WHERE dv.compra_id = compras.id
-                        ),0)) AS disponible
-                     FROM compras
-                     WHERE producto = ?
-                     HAVING disponible > 0
-                     ORDER BY fecha ASC`,
-                    [ean],
-                    (errLotes, lotes) => {
-                        if (errLotes && !errorOcurrido) {
-                            errorOcurrido = true;
-                            return res.status(500).send('Error al obtener lotes');
-                        }
-                        if (!lotes || lotes.length === 0) {
-                            errorOcurrido = true;
-                            return res.status(400).send(`No hay stock suficiente para el producto ${ean}`);
-                        }
-
-                        // 3. Descontar de los lotes (FIFO)
-                        let lotesUsados = [];
-                        for (const lote of lotes) {
-                            if (cantidadRestante <= 0) break;
-                            const usar = Math.min(lote.disponible, cantidadRestante);
-                            lotesUsados.push({
-                                compra_id: lote.id,
-                                cantidad: usar,
-                                precio_compra: lote.precio_compra
-                            });
-                            cantidadRestante -= usar;
-                        }
-
-                        if (cantidadRestante > 0 && !errorOcurrido) {
-                            errorOcurrido = true;
-                            return res.status(400).send(`Stock insuficiente para el producto ${ean}`);
-                        }
-
-                        // 4. Registrar en detalle_venta por cada lote usado
-                        let pendientesLotes = lotesUsados.length;
-                        lotesUsados.forEach(lote => {
-                            // Obtener el precio de venta actual
-                            connection.query(
-                                'SELECT precio_venta FROM producto WHERE ean = ?',
-                                [ean],
-                                (errPrecio, rowsPrecio) => {
-                                    if (errPrecio && !errorOcurrido) {
-                                        errorOcurrido = true;
-                                        return res.status(500).send('Error al obtener precio de venta');
-                                    }
-                                    const precioVenta = rowsPrecio[0]?.precio_venta ?? 0;
-                                    totalVenta += precioVenta * lote.cantidad;
-
-                                    connection.query(
-                                        'INSERT INTO detalle_venta (venta_id, producto, cantidad, precio_unitario, compra_id) VALUES (?, ?, ?, ?, ?)',
-                                        [ventaId, ean, lote.cantidad, precioVenta, lote.compra_id],
-                                        (err3) => {
-                                            if (err3 && !errorOcurrido) {
-                                                errorOcurrido = true;
-                                                return res.status(500).send('Error al registrar detalle');
-                                            }
-                                            // Actualizar stock del producto
-                                            connection.query(
-                                                'UPDATE producto SET stock = stock - ? WHERE ean = ?',
-                                                [lote.cantidad, ean],
-                                                (err4) => {
-                                                    if (err4 && !errorOcurrido) {
-                                                        errorOcurrido = true;
-                                                        return res.status(500).send('Error al actualizar stock');
-                                                    }
-                                                    pendientesLotes--;
-                                                    if (pendientesLotes === 0) {
-                                                        pendientes--;
-                                                        if (pendientes === 0 && !errorOcurrido) {
-                                                            // Actualizar el total de la venta
-                                                            connection.query(
-                                                                'UPDATE ventas SET total = ? WHERE id = ?',
-                                                                [totalVenta, ventaId],
-                                                                (err5) => {
-                                                                    if (err5) return res.status(500).send('Error al actualizar total');
-                                                                    res.send('Venta registrada correctamente');
-                                                                }
-                                                            );
-                                                        }
-                                                    }
-                                                }
-                                            );
-                                        }
-                                    );
-                                }
-                            );
-                        });
-                    }
-                );
-            });
-        }
+    // Actualizar total en la venta
+    await connection.query(
+      'UPDATE ventas SET total = ? WHERE id = ?',
+      [total, ventaId]
     );
+
+    await connection.commit();
+    res.json({ message: 'Venta registrada exitosamente', ventaId, total });
+  } catch (err) {
+    await connection.rollback();
+    res.status(400).send(err.message);
+  } finally {
+    connection.release();
+  }
 });
+
+
+
+
+
 
 // Endpoint para ver el total de caja
 app.get('/caja', (req, res) => {
@@ -512,7 +472,7 @@ app.get('/compras', (req, res) => {
          JOIN proveedor p ON c.proveedor = p.id
          JOIN producto pr ON c.producto = pr.ean
          ORDER BY c.fecha DESC
-         LIMIT 95`,
+         LIMIT 500`,
         (err, results) => {
             if (err) return res.status(500).send('Error al obtener compras');
             res.json(results);
