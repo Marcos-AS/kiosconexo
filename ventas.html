@@ -128,6 +128,9 @@ function renderSelectProductos(filtro = '') {
                 detalle.push({ ean, cantidad });
             }
             renderDetalle();
+            document.getElementById('buscarEanVenta').value = '';
+            document.getElementById('cantidad').value = 1;
+            document.getElementById('buscarEanVenta').focus();
         };
 
 async function cargarVentasRealizadas() {
@@ -138,6 +141,8 @@ async function cargarVentasRealizadas() {
     }
     const res = await fetch(url);
     const ventas = await res.json();
+    //console.log('Ventas cargadas:', ventas);
+    
     const tbody = document.getElementById('ventasRealizadas');
     tbody.innerHTML = '';
 
@@ -184,27 +189,31 @@ async function cargarVentasRealizadas() {
 }
 
 
-        document.getElementById('registrarVenta').onclick = async function() {
-            const fechaVenta = document.getElementById('fechaVenta').value;
-            if (detalle.length === 0) {
-                alert('Agrega al menos un producto');
-                return;
-            }
-            const res = await fetch('/ventas', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ productos: detalle, fecha: fechaVenta })
-            });
-            const msg = await res.text();
-            alert(msg);
-            detalle = [];
-            renderDetalle();
-            cargarProductos();
-            cargarVentasRealizadas();
-        };
+document.getElementById('registrarVenta').onclick = async function() {
+    if (detalle.length === 0) {
+        alert('Agrega al menos un producto');
+        return;
+    }
 
-        cargarProductos();
-        cargarVentasRealizadas();
+    // 🔹 Tomar la fecha/hora actual en formato compatible con datetime-local
+    const ahora = new Date();
+    const fechaVenta = ahora.toISOString().slice(0, 19).replace('T', ' ');
+
+    const res = await fetch('/ventas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productos: detalle, fecha: fechaVenta })
+    });
+    const msg = await res.text();
+    alert(msg);
+
+    // Resetear
+    detalle = [];
+    renderDetalle();
+    cargarVentasRealizadas();
+};
+
+    cargarProductos();
 
         function setFechaActual() {
             const ahora = new Date();
@@ -224,6 +233,13 @@ async function cargarVentasRealizadas() {
             document.getElementById('filtroFecha').value = '';
             cargarVentasRealizadas();
         };
+
+        document.addEventListener("DOMContentLoaded", () => {
+          const hoy = new Date().toISOString().split("T")[0];
+          document.getElementById("filtroFecha").value = hoy;
+          cargarVentasRealizadas(); // ya carga filtrado a hoy
+        });
+
     </script>
 </body>
 </html>
