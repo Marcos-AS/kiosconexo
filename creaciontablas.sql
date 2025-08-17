@@ -67,6 +67,12 @@ CREATE TABLE IF NOT EXISTS compras (
     FOREIGN KEY (producto) REFERENCES producto(ean)
 );
 
+create table decomisacion (
+ean char(13),
+cantidad int not null,
+fecha datetime,
+foreign key (ean) references producto(ean));
+
 insert into proveedor(nombre, ubicacion) values ("La anónima", "Chivilcoy");
 
 select * from categoria;

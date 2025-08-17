@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar Decomisación</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Registrar Decomisación</h1>
+
+    <form id="form-decomisacion">
+        <label>Buscar por EAN o nombre:</label>
+        <input type="text" id="buscarEanDecomisacion" placeholder="Ingrese EAN o nombre">
+        <br>
+
+        <label>Producto:</label>
+        <select id="productoSelect"></select>
+
+        <label>Cantidad:</label>
+        <input type="number" id="cantidad" min="1" value="1">
+        <br>
+
+        <button type="button" id="registrarDecomisacion">Registrar Decomisación</button>
+    </form>
+
+    <h2>Decomisaciones realizadas</h2>
+    <label for="filtroFecha">Filtrar por fecha:</label>
+    <input type="date" id="filtroFecha">
+    <button id="btnFiltrarFecha">Filtrar</button>
+    <button id="btnLimpiarFecha">Limpiar</button>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>EAN</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+            </tr>
+        </thead>
+        <tbody id="tablaDecomisaciones"></tbody>
+    </table>
+
+    <script>
+        let productos = [];
+
+        // Cargar productos desde el backend
+        async function cargarProductos() {
+            const res = await fetch('/productos');
+            productos = await res.json();
+            renderSelectProductos();
+        }
+
+        function renderSelectProductos(filtro = '') {
+            const select = document.getElementById('productoSelect');
+            select.innerHTML = '';
+            productos
+                .filter(p =>
+                    p.ean.includes(filtro) ||
+                    p.nombre.toLowerCase().includes(filtro.toLowerCase())
+                )
+                .forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.ean;
+                    option.textContent = `${p.nombre} (EAN: ${p.ean}, Stock: ${p.stock ?? 0})`;
+                    select.appendChild(option);
+                });
+        }
+
+        document.getElementById('buscarEanDecomisacion').addEventListener('input', function() {
+            renderSelectProductos(this.value.trim());
+        });
+
+        // Registrar decomisación
+        document.getElementById('registrarDecomisacion').onclick = async function() {
+            const ean = document.getElementById('productoSelect').value;
+            const cantidad = parseInt(document.getElementById('cantidad').value);
+
+            if (!ean || cantidad < 1) {
+                alert('Seleccione un producto y cantidad válida');
+                return;
+            }
+
+            const ahora = new Date();
+            const fecha = ahora.toISOString().slice(0, 19).replace('T', ' ');
+
+            const res = await fetch('/decomisaciones', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ean, cantidad, fecha })
+            });
+            const msg = await res.text();
+            alert(msg);
+
+            // Resetear campos
+            document.getElementById('buscarEanDecomisacion').value = '';
+            document.getElementById('cantidad').value = 1;
+            document.getElementById('buscarEanDecomisacion').focus();
+
+            // Recargar tabla
+            cargarDecomisaciones();
+        };
+
+        // Cargar todas las decomisaciones
+        async function cargarDecomisaciones() {
+            const fecha = document.getElementById('filtroFecha').value;
+            let url = '/decomisaciones';
+            if (fecha) {
+                url += '?fecha=' + encodeURIComponent(fecha);
+            }
+
+            const res = await fetch(url);
+            const decomisaciones = await res.json();
+
+            const tbody = document.getElementById('tablaDecomisaciones');
+            tbody.innerHTML = '';
+
+            decomisaciones.forEach(d => {
+                const prod = productos.find(p => p.ean === d.ean);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${new Date(d.fecha).toLocaleString()}</td>
+                    <td>${d.ean}</td>
+                    <td>${prod ? prod.nombre : '-'}</td>
+                    <td>${d.cantidad}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('btnFiltrarFecha').onclick = cargarDecomisaciones;
+        document.getElementById('btnLimpiarFecha').onclick = function() {
+            document.getElementById('filtroFecha').value = '';
+            cargarDecomisaciones();
+        };
+
+        // Inicializar
+        document.addEventListener("DOMContentLoaded", () => {
+            cargarProductos();
+            cargarDecomisaciones();
+        });
+    </script>
+</body>
+</html>

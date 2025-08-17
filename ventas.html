@@ -56,6 +56,9 @@
         <tbody id="ventasRealizadas"></tbody>
     </table>
 
+    <h3>Total de ventas en el período: $<span id="totalVentasPeriodo">0</span></h3>
+
+
     <script>
         let productos = [];
         let detalle = [];
@@ -141,13 +144,15 @@ async function cargarVentasRealizadas() {
     }
     const res = await fetch(url);
     const ventas = await res.json();
-    //console.log('Ventas cargadas:', ventas);
     
     const tbody = document.getElementById('ventasRealizadas');
     tbody.innerHTML = '';
 
+    let totalPeriodo = 0;
+
     ventas.forEach((v, ventaIndex) => {
-        // Fila principal (venta)
+        totalPeriodo += parseFloat(v.total) || 0; // 🔹 Sumar total
+
         const trVenta = document.createElement('tr');
         trVenta.style.backgroundColor = '#f0f0f0';
         trVenta.style.cursor = 'pointer';
@@ -158,11 +163,10 @@ async function cargarVentasRealizadas() {
         `;
         tbody.appendChild(trVenta);
 
-        // Filas de detalle (productos)
         v.detalle.forEach(d => {
             const trDetalle = document.createElement('tr');
             trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
-            trDetalle.style.display = 'none'; // oculto al inicio
+            trDetalle.style.display = 'none';
             trDetalle.innerHTML = `
                 <td></td>
                 <td></td>
@@ -174,19 +178,21 @@ async function cargarVentasRealizadas() {
             tbody.appendChild(trDetalle);
         });
 
-        // Toggle de mostrar/ocultar productos
         trVenta.addEventListener('click', () => {
             const filasDetalle = document.querySelectorAll(`.detalle-venta-${ventaIndex}`);
             const mostrando = filasDetalle[0].style.display === '';
             filasDetalle.forEach(fila => {
                 fila.style.display = mostrando ? 'none' : '';
             });
-            // Cambiar el texto de la flecha
             const flecha = trVenta.querySelector('td[colspan] strong');
             flecha.textContent = mostrando ? 'Ver productos ▼' : 'Ocultar productos ▲';
         });
     });
+
+    // 🔹 Mostrar total de ventas filtradas
+    document.getElementById('totalVentasPeriodo').textContent = totalPeriodo.toFixed(2);
 }
+
 
 
 document.getElementById('registrarVenta').onclick = async function() {

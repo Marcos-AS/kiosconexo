@@ -8,15 +8,16 @@
 </head>
 <body>
 
-    <a href="compras.html">Registrar Compra</a>
-    <a href="lista-compras.html">Lista de Compras</a>
+    <a href="compras.html">Registrar compra a proveedor y ver compras hechas</a><br>
+    <a href="lista-compras.html">Lista de compras (para ir a comprar al proveedor)</a><br>
+    <a href="decomisacion.html">Decomisaciones</a>
 
     <form action="" id="ingresar">
     <label for="ean">EAN</label>
-    <input type="text" id="ean">
+    <input type="text" id="ean" autofocus>
 
     <label for="nombre">Nombre</label>
-    <input type="text" id="nombre" autofocus>
+    <input type="text" id="nombre" >
 
     <label for="stock">Stock</label>
     <input type="number" id="stock" min="0">
@@ -173,7 +174,7 @@
                 fijarMarcaCheckbox.checked = marcaFija;
                 fijarGramosCheckbox.checked = gramosFijo;
 
-                document.getElementById('nombre').focus();
+                document.getElementById('ean').focus();
             }
         } catch (err) {
             console.error('Error al enviar producto:', err);
