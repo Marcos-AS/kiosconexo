@@ -51,12 +51,14 @@
                 <th>Cantidad</th>
                 <th>Precio Venta</th>
                 <th>Precio Compra</th>
+                <th>Ganancia</th>
             </tr>
         </thead>
         <tbody id="ventasRealizadas"></tbody>
     </table>
 
     <h3>Total de ventas en el período: $<span id="totalVentasPeriodo">0</span></h3>
+    <h3>Total de diferencia (ganancia): $<span id="totalDiferenciaPeriodo">0</span></h3>
 
 
     <script>
@@ -144,14 +146,15 @@ async function cargarVentasRealizadas() {
     }
     const res = await fetch(url);
     const ventas = await res.json();
-    
+
     const tbody = document.getElementById('ventasRealizadas');
     tbody.innerHTML = '';
 
     let totalPeriodo = 0;
+    let totalDiferencia = 0; // 🔹 acumulador de ganancia
 
     ventas.forEach((v, ventaIndex) => {
-        totalPeriodo += parseFloat(v.total) || 0; // 🔹 Sumar total
+        totalPeriodo += parseFloat(v.total) || 0;
 
         const trVenta = document.createElement('tr');
         trVenta.style.backgroundColor = '#f0f0f0';
@@ -163,20 +166,30 @@ async function cargarVentasRealizadas() {
         `;
         tbody.appendChild(trVenta);
 
-        v.detalle.forEach(d => {
-            const trDetalle = document.createElement('tr');
-            trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
-            trDetalle.style.display = 'none';
-            trDetalle.innerHTML = `
-                <td></td>
-                <td></td>
-                <td>${d.producto_nombre || d.producto}</td>
-                <td>${d.cantidad}</td>
-                <td>${d.precio_unitario}</td>
-                <td>${d.precio_compra !== undefined && d.precio_compra !== null ? d.precio_compra : '-'}</td>
-            `;
-            tbody.appendChild(trDetalle);
-        });
+v.detalle.forEach(d => {
+    const pv = parseFloat(d.precio_unitario) || 0;
+    const pc = parseFloat(d.precio_compra) || 0;
+    const cant = parseFloat(d.cantidad) || 0;
+    const diferencia = (pv - pc) * cant;
+
+    // 🔹 Acumular diferencia global
+    totalDiferencia += diferencia;
+
+    const trDetalle = document.createElement('tr');
+    trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
+    trDetalle.style.display = 'none';
+    trDetalle.innerHTML = `
+        <td></td>
+        <td></td>
+        <td>${d.producto_nombre || d.producto}</td>
+        <td>${cant}</td>
+        <td>${pv.toFixed(2)}</td>
+        <td>${pc ? pc.toFixed(2) : '-'}</td>
+        <td>${pc ? diferencia.toFixed(2) : '-'}</td> <!-- 🔹 diferencia por fila -->
+    `;
+    tbody.appendChild(trDetalle);
+});
+
 
         trVenta.addEventListener('click', () => {
             const filasDetalle = document.querySelectorAll(`.detalle-venta-${ventaIndex}`);
@@ -189,9 +202,11 @@ async function cargarVentasRealizadas() {
         });
     });
 
-    // 🔹 Mostrar total de ventas filtradas
+    // 🔹 Mostrar totales
     document.getElementById('totalVentasPeriodo').textContent = totalPeriodo.toFixed(2);
+    document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
 }
+
 
 
 

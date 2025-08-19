@@ -467,7 +467,7 @@ app.post('/compras', (req, res) => {
 // Listar compras recientes
 app.get('/compras', (req, res) => {
     connection.query(
-        `SELECT c.fecha, p.nombre as proveedor_nombre, pr.nombre as producto_nombre, c.cantidad, c.precio_compra
+        `SELECT c.fecha, p.nombre as proveedor_nombre, pr.nombre as producto_nombre, c.cantidad, c.precio_compra, c.id
          FROM compras c
          JOIN proveedor p ON c.proveedor = p.id
          JOIN producto pr ON c.producto = pr.ean
@@ -659,6 +659,28 @@ app.put('/productos/:ean/nombre', async (req, res) => {
     } catch (err) {
         console.error("Error al actualizar nombre:", err);
         res.status(500).send("Error al actualizar nombre");
+    }
+});
+
+// PUT /compras/:id/precio
+app.put('/compras/:id/precio', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { precio_compra } = req.body;
+
+        if (!id || !precio_compra) {
+            return res.status(400).send("Faltan datos");
+        }
+
+        await pool.query(
+            "UPDATE compras SET precio_compra = ? WHERE id = ?",
+            [precio_compra, id]
+        );
+
+        res.send("Precio actualizado correctamente");
+    } catch (err) {
+        console.error("Error al actualizar precio:", err);
+        res.status(500).send("Error al actualizar precio");
     }
 });
 

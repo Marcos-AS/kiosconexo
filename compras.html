@@ -93,33 +93,81 @@ async function cargarCompras() {
     const hoy = new Date().toISOString().split('T')[0];
     let totalHoy = 0;
 
-    compras.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${c.fecha}</td>
-            <td>${c.proveedor_nombre}</td>
-            <td>${c.producto_nombre}</td>
-            <td>${c.cantidad}</td>
-            <td>${c.precio_compra}</td>
-        `;
-        tbody.appendChild(tr);
+compras.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${c.fecha}</td>
+        <td>${c.proveedor_nombre}</td>
+        <td>${c.producto_nombre}</td>
+        <td>${c.cantidad}</td>
+        <td>
+            <input type="number" value="${c.precio_compra}" data-id="${c.id}">
+            <button onclick="guardarPrecioCompra(this)">✏️</button>
+        </td>
+    `;
+    tbody.appendChild(tr);
 
-        // Convertir fecha del registro a YYYY-MM-DD en zona local
+        // Total del día
         const fechaRegistro = new Date(c.fecha).toISOString().split('T')[0];
-
         if (fechaRegistro === hoy) {
             const precio = parseFloat(c.precio_compra) || 0;
             const cantidad = parseInt(c.cantidad) || 0;
             totalHoy += precio * cantidad;
-            console.log(totalHoy, precio, cantidad);
-            
         }
     });
 
-    // Mostrar total de hoy
     document.getElementById('totalHoy').textContent =
         `Total de compras hoy: $${totalHoy.toFixed(2)}`;
 }
+
+async function guardarPrecioCompra(button) {
+    const input = button.previousElementSibling;
+    const nuevoPrecio = parseFloat(input.value);
+    const id = input.dataset.id;
+
+    if (isNaN(nuevoPrecio) || nuevoPrecio <= 0) {
+        alert("El precio debe ser válido");
+        return;
+    }
+
+    try {
+        const res = await fetch(`/compras/${id}/precio`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, precio_compra: parseFloat(nuevoPrecio) })
+        });
+
+        const msg = await res.text();
+        alert(msg);
+
+        if (res.ok) {
+            await cargarCompras(); // refresca la tabla
+        }
+    } catch (err) {
+        console.error("Error al actualizar precio:", err);
+        alert("Error al actualizar precio");
+    }
+}
+
+async function editarPrecio(id, precioActual) {
+    const nuevoPrecio = prompt("Nuevo precio:", precioActual);
+    if (!nuevoPrecio) return;
+
+    try {
+        const res = await fetch(`/compras/${id}/precio`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ precio_compra: parseFloat(nuevoPrecio) })
+        });
+        const msg = await res.text();
+        alert(msg);
+        cargarCompras();
+    } catch (err) {
+        console.error('Error al actualizar precio:', err);
+        alert('Error al actualizar precio');
+    }
+}
+
 
 
 
