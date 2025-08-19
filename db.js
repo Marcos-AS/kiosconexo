@@ -645,6 +645,24 @@ app.get('/decomisaciones', (req, res) => {
     });
 });
 
+app.put('/productos/:ean/nombre', async (req, res) => {
+    const { ean } = req.params;
+    const { nombre } = req.body;
+
+    if (!nombre) {
+        return res.status(400).send("El nombre no puede estar vacío");
+    }
+
+    try {
+        await pool.query("UPDATE producto SET nombre = ? WHERE ean = ?", [nombre, ean]);
+        res.send("Nombre actualizado correctamente");
+    } catch (err) {
+        console.error("Error al actualizar nombre:", err);
+        res.status(500).send("Error al actualizar nombre");
+    }
+});
+
+
 
 app.use(express.static(__dirname));
 app.listen(port, () => {

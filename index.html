@@ -283,7 +283,11 @@ function mostrarProductos(productos) {
                     ${prod.ean}
                     <button onclick="pegarEAN('${prod.ean}')">📋</button>
                 </td>
-                <td>${prod.nombre}</td>
+                <td>
+                <input type="text" value="${prod.nombre}" data-ean="${prod.ean}" class="nombre-edit" style="width: 120px">
+                <button onclick="guardarNombre(this)">💾</button>
+                </td>
+
                 <td>
                 <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
                         <button onclick="actualizarStock(this)">💾</button>
@@ -362,6 +366,38 @@ function borrarPrecio() {
     document.getElementById('precio').value = '';
     document.getElementById('precio').focus();
 }
+
+async function guardarNombre(button) {
+    const input = button.previousElementSibling;
+    const nuevoNombre = input.value.trim();
+    const ean = input.dataset.ean;
+
+    if (!nuevoNombre) {
+        alert('El nombre no puede estar vacío.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/productos/${ean}/nombre`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nombre: nuevoNombre })
+        });
+
+        const msg = await res.text();
+        alert(msg);
+
+        if (res.ok) {
+            await filtrarProductos(); // refrescar tabla
+        }
+    } catch (err) {
+        console.error('Error al actualizar el nombre:', err);
+        alert('Error al actualizar el nombre');
+    }
+}
+
 
 async function guardarMarca(button) {
     const input = button.previousElementSibling;
