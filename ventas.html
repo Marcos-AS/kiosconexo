@@ -52,6 +52,7 @@
                 <th>Precio Venta</th>
                 <th>Precio Compra</th>
                 <th>Ganancia</th>
+                <th>% Ganancia</th> 
             </tr>
         </thead>
         <tbody id="ventasRealizadas"></tbody>
@@ -171,6 +172,8 @@ v.detalle.forEach(d => {
     const pc = parseFloat(d.precio_compra) || 0;
     const cant = parseFloat(d.cantidad) || 0;
     const diferencia = (pv - pc) * cant;
+    const porcentajeGanancia = pc ? ((pv - pc) / pc) * 100 : 0;
+
 
     // 🔹 Acumular diferencia global
     totalDiferencia += diferencia;
@@ -186,7 +189,8 @@ v.detalle.forEach(d => {
         <td>${pv.toFixed(2)}</td>
         <td>${pc ? pc.toFixed(2) : '-'}</td>
         <td>${pc ? diferencia.toFixed(2) : '-'}</td> <!-- 🔹 diferencia por fila -->
-    `;
+        <td>${pc ? porcentajeGanancia.toFixed(2) + '%' : '-'}</td>
+        `;
     tbody.appendChild(trDetalle);
 });
 
