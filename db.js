@@ -518,7 +518,7 @@ app.get('/ventas', (req, res) => {
     }
     sql += `
         ORDER BY v.fecha DESC, v.id DESC
-        LIMIT 100
+        LIMIT 500
     `;
     connection.query(sql, params, (err, results) => {
         if (err) return res.status(500).send('Error al obtener ventas');
