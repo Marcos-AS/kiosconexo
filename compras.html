@@ -22,6 +22,12 @@
         <label>Precio de compra:</label>
         <input type="number" id="precioCompra" min="0" step="0.01">
         <br>
+        <label>Medio de pago:</label>
+        <select id="medioPago">
+            <option value="efectivo">Efectivo</option>
+            <option value="otro">Otro</option>
+        </select>
+        <br>
         <button type="button" id="agregarCompra">Registrar Compra</button>
     </form>
     <h2>Compras recientes</h2>
@@ -176,13 +182,13 @@ document.getElementById('agregarCompra').onclick = async function() {
     const producto = document.getElementById('productoSelect').value;
     const cantidad = parseInt(document.getElementById('cantidad').value);
     const precioCompra = parseFloat(document.getElementById('precioCompra').value);
+    const medioPago = document.getElementById('medioPago').value;
 
     if (!proveedor || !producto || !cantidad || !precioCompra) {
         alert('Completa todos los campos');
         return;
     }
 
-    // Guardar valores en localStorage para mantenerlos tras el reload
     localStorage.setItem('cantidadCompra', cantidad);
     localStorage.setItem('precioCompra', precioCompra);
 
@@ -194,17 +200,17 @@ document.getElementById('agregarCompra').onclick = async function() {
                 proveedor,
                 producto,
                 cantidad,
-                precio_compra: precioCompra
+                precio_compra: precioCompra,
+                medio_pago: medioPago
             })
         });
 
         const msg = await res.text();
         alert(msg);
 
-        // 🔹 Esperar un breve momento y refrescar
         setTimeout(() => {
             location.reload();
-        }, 200); // un pequeño delay por seguridad
+        }, 200);
 
     } catch (err) {
         console.error('Error al registrar compra:', err);

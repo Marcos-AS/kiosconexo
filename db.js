@@ -450,28 +450,33 @@ app.get('/caja', async (req, res) => {
 });
 
 // Registrar una compra
-app.post('/compras', (req, res) => {
-    const { proveedor, producto, cantidad, precio_compra } = req.body;
+app.post('/compras', async (req, res) => {
+    const { proveedor, producto, cantidad, precio_compra, medio_pago } = req.body;
     if (!proveedor || !producto || !cantidad || !precio_compra) {
         return res.status(400).send('Faltan datos');
     }
     const fecha = new Date();
-    connection.query(
-        'INSERT INTO compras (fecha, proveedor, producto, cantidad, precio_compra) VALUES (?, ?, ?, ?, ?)',
-        [fecha, proveedor, producto, cantidad, precio_compra],
-        (err) => {
-            if (err) return res.status(500).send('Error al registrar compra');
-            // Actualizar stock del producto
-            // connection.query(
-            //     'UPDATE producto SET stock = stock + ? WHERE ean = ?',
-            //     [cantidad, producto],
-            //     (err2) => {
-            //         if (err2) return res.status(500).send('Error al actualizar stock');
-            //         res.send('Compra registrada correctamente');
-            //     }
-            // );
+
+    try {
+        // Registrar la compra
+        await pool.query(
+            'INSERT INTO compras (fecha, proveedor, producto, cantidad, precio_compra) VALUES (?, ?, ?, ?, ?)',
+            [fecha, proveedor, producto, cantidad, precio_compra]
+        );
+
+        // Si el pago fue en efectivo, descuenta de caja
+        if (medio_pago === 'efectivo') {
+            await pool.query(
+                'INSERT INTO caja (efectivo) VALUES (?)',
+                [-precio_compra * cantidad]
+            );
         }
-    );
+
+        res.send('Compra registrada correctamente');
+    } catch (err) {
+        console.error('Error al registrar compra:', err);
+        res.status(500).send('Error al registrar compra');
+    }
 });
 
 // Listar compras recientes
