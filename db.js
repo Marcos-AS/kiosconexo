@@ -358,9 +358,7 @@ const pool = mysql.createPool({
 }).promise();
 
 app.post('/ventas', async (req, res) => {
-  const { productos } = req.body; // productos = [{ ean, cantidad }]
-  console.log('Productos recibidos:', productos);
-
+  const { productos, medio_pago } = req.body;
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -369,7 +367,8 @@ app.post('/ventas', async (req, res) => {
 
     // Insertar venta temporal con total 0, lo actualizamos después
     const [ventaResult] = await connection.query(
-      'INSERT INTO ventas (fecha, total) VALUES (NOW(), 0)'
+      'INSERT INTO ventas (fecha, total, medio_pago) VALUES (NOW(), 0, ?)',
+      [medio_pago || 'efectivo']
     );
     const ventaId = ventaResult.insertId;
 
@@ -416,6 +415,14 @@ app.post('/ventas', async (req, res) => {
       [total, ventaId]
     );
 
+    // Si el medio de pago es efectivo, suma al efectivo en caja
+    if ((medio_pago || 'efectivo') === 'efectivo') {
+      await connection.query(
+        'INSERT INTO caja (efectivo) VALUES (?)',
+        [total]
+      );
+    }
+
     await connection.commit();
     res.json({ message: 'Venta registrada exitosamente', ventaId, total });
   } catch (err) {
@@ -432,11 +439,14 @@ app.post('/ventas', async (req, res) => {
 
 
 // Endpoint para ver el total de caja
-app.get('/caja', (req, res) => {
-    connection.query('SELECT SUM(total) as caja FROM ventas', (err, results) => {
-        if (err) return res.status(500).send('Error al consultar caja');
-        res.json({ caja: results[0].caja ?? 0 });
-    });
+app.get('/caja', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT SUM(efectivo) AS caja_total FROM caja');
+        res.json({ caja: rows[0].caja_total || 0 });
+    } catch (err) {
+        console.error('Error al consultar caja:', err);
+        res.status(500).send('Error al consultar caja');
+    }
 });
 
 // Registrar una compra
@@ -681,6 +691,20 @@ app.put('/compras/:id/precio', async (req, res) => {
     } catch (err) {
         console.error("Error al actualizar precio:", err);
         res.status(500).send("Error al actualizar precio");
+    }
+});
+
+let efectivoCaja = 0;
+
+app.post('/caja-inicial', async (req, res) => {
+    const { efectivo } = req.body;
+    const valor = parseFloat(efectivo) || 0;
+    try {
+        await pool.query('INSERT INTO caja (efectivo) VALUES (?)', [valor]);
+        res.send('Efectivo inicial guardado');
+    } catch (err) {
+        console.error('Error al guardar efectivo inicial:', err);
+        res.status(500).send('Error al guardar efectivo inicial');
     }
 });
 

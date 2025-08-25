@@ -35,6 +35,15 @@
         <tbody id="detalleVenta"></tbody>
     </table>
     <h3>Total: $<span id="totalVenta">0</span></h3>
+
+
+    <label for="medioPago">Medio de pago:</label>
+    <select id="medioPago">
+        <option value="efectivo">Efectivo</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="qr">QR</option>
+        <option value="debito">Débito</option>
+    </select>
     <button id="registrarVenta">Registrar Venta</button>
 
     <h2>Ventas realizadas</h2>
@@ -60,6 +69,10 @@
 
     <h3>Total de ventas en el período: $<span id="totalVentasPeriodo">0</span></h3>
     <h3>Total de diferencia (ganancia): $<span id="totalDiferenciaPeriodo">0</span></h3>
+    <h3>Total en caja: $<span id="totalCaja">0</span></h3>
+    <!-- <label for="efectivoCaja">Efectivo en caja:</label>
+    <input type="number" id="efectivoCaja" min="0" value="0">
+    <button id="guardarEfectivoCaja">Guardar efectivo</button> -->
 
 
     <script>
@@ -211,31 +224,50 @@ v.detalle.forEach(d => {
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
 }
 
+async function mostrarTotalCaja() {
+    const res = await fetch('/caja');
+    const data = await res.json();
+    const totalCaja = Number(data.caja) || 0;
+    document.getElementById('totalCaja').textContent = totalCaja.toFixed(2);
+}
 
+// Llama a mostrarTotalCaja al cargar y después de registrar efectivo o venta
+mostrarTotalCaja();
 
+// Guardar efectivo inicial en caja
+// document.getElementById('guardarEfectivoCaja').onclick = async function() {
+//     const efectivo = parseFloat(document.getElementById('efectivoCaja').value) || 0;
+//     await fetch('/caja-inicial', {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({ efectivo })
+//     });
+//     alert('Efectivo inicial guardado');
+//     mostrarTotalCaja();
+// };
 
+// Modifica el registro de venta para enviar el medio de pago
 document.getElementById('registrarVenta').onclick = async function() {
     if (detalle.length === 0) {
         alert('Agrega al menos un producto');
         return;
     }
-
-    // 🔹 Tomar la fecha/hora actual en formato compatible con datetime-local
     const ahora = new Date();
     const fechaVenta = ahora.toISOString().slice(0, 19).replace('T', ' ');
+    const medioPago = document.getElementById('medioPago').value;
 
     const res = await fetch('/ventas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productos: detalle, fecha: fechaVenta })
+        body: JSON.stringify({ productos: detalle, fecha: fechaVenta, medio_pago: medioPago })
     });
     const msg = await res.text();
     alert(msg);
 
-    // Resetear
     detalle = [];
     renderDetalle();
     cargarVentasRealizadas();
+    mostrarTotalCaja();
 };
 
     cargarProductos();
