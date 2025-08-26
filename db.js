@@ -417,9 +417,10 @@ app.post('/ventas', async (req, res) => {
 
     // Si el medio de pago es efectivo, suma al efectivo en caja
     if ((medio_pago || 'efectivo') === 'efectivo') {
+      const fechaHoy = new Date().toISOString().split('T')[0];
       await connection.query(
-        'INSERT INTO caja (efectivo) VALUES (?)',
-        [total]
+        'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
+        [total, fechaHoy]
       );
     }
 
@@ -440,8 +441,13 @@ app.post('/ventas', async (req, res) => {
 
 // Endpoint para ver el total de caja
 app.get('/caja', async (req, res) => {
+    const fechaHoy = new Date().toISOString().split('T')[0];
     try {
-        const [rows] = await pool.query('SELECT SUM(efectivo) AS caja_total FROM caja');
+        // Suma todos los movimientos de caja del día actual
+        const [rows] = await pool.query(
+            'SELECT SUM(efectivo) AS caja_total FROM caja WHERE fecha = ?',
+            [fechaHoy]
+        );
         res.json({ caja: rows[0].caja_total || 0 });
     } catch (err) {
         console.error('Error al consultar caja:', err);
@@ -466,9 +472,10 @@ app.post('/compras', async (req, res) => {
 
         // Si el pago fue en efectivo, descuenta de caja
         if (medio_pago === 'efectivo') {
+            const fechaHoy = new Date().toISOString().split('T')[0];
             await pool.query(
-                'INSERT INTO caja (efectivo) VALUES (?)',
-                [-precio_compra * cantidad]
+                'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
+                [-precio_compra * cantidad, fechaHoy]
             );
         }
 
@@ -713,7 +720,41 @@ app.post('/caja-inicial', async (req, res) => {
     }
 });
 
+app.post('/abrir-caja', async (req, res) => {
+    const { efectivo } = req.body;
+    const fechaHoy = new Date().toISOString().split('T')[0];
 
+    try {
+        // Verifica si ya existe apertura para hoy
+        const [rows] = await pool.query(
+            'SELECT id FROM caja WHERE fecha = ?',
+            [fechaHoy]
+        );
+        if (rows.length > 0) {
+            return res.status(400).send('Ya se abrió la caja hoy');
+        }
+        // Inserta apertura
+        await pool.query(
+            'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
+            [efectivo, fechaHoy]
+        );
+        res.send('Caja abierta correctamente');
+    } catch (err) {
+        console.error('Error al abrir caja:', err);
+        res.status(500).send('Error al abrir caja');
+    }
+});
+
+app.get('/caja-abierta', async (req, res) => {
+    const fecha = req.query.fecha;
+    if (!fecha) return res.json({ abierta: false });
+    try {
+        const [rows] = await pool.query('SELECT id FROM caja WHERE fecha = ?', [fecha]);
+        res.json({ abierta: rows.length > 0 });
+    } catch (err) {
+        res.json({ abierta: false });
+    }
+});
 
 app.use(express.static(__dirname));
 app.listen(port, () => {

@@ -70,10 +70,9 @@
     <h3>Total de ventas en el período: $<span id="totalVentasPeriodo">0</span></h3>
     <h3>Total de diferencia (ganancia): $<span id="totalDiferenciaPeriodo">0</span></h3>
     <h3>Total en caja: $<span id="totalCaja">0</span></h3>
-    <!-- <label for="efectivoCaja">Efectivo en caja:</label>
-    <input type="number" id="efectivoCaja" min="0" value="0">
-    <button id="guardarEfectivoCaja">Guardar efectivo</button> -->
-
+    <label for="efectivoApertura">Efectivo inicial hoy:</label>
+<input type="number" id="efectivoApertura" min="0" value="0">
+<button id="btnAbrirCaja">Abrir caja</button>
 
     <script>
         let productos = [];
@@ -233,6 +232,42 @@ async function mostrarTotalCaja() {
 
 // Llama a mostrarTotalCaja al cargar y después de registrar efectivo o venta
 mostrarTotalCaja();
+
+document.getElementById('btnAbrirCaja').onclick = async function() {
+    const efectivo = parseFloat(document.getElementById('efectivoApertura').value) || 0;
+    const res = await fetch('/abrir-caja', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ efectivo })
+    });
+    const msg = await res.text();
+    alert(msg);
+    mostrarTotalCaja();
+};
+
+async function verificarCajaAbiertaHoy() {
+    const hoy = new Date().toISOString().split('T')[0];
+    const res = await fetch('/caja-abierta?fecha=' + hoy);
+    const data = await res.json();
+    if (data.abierta) {
+        document.getElementById('efectivoApertura').disabled = true;
+        document.getElementById('btnAbrirCaja').disabled = true;
+    } else {
+        document.getElementById('efectivoApertura').disabled = false;
+        document.getElementById('btnAbrirCaja').disabled = false;
+    }
+}
+
+// ...existing code...
+
+document.addEventListener("DOMContentLoaded", () => {
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("filtroFecha").value = hoy;
+    cargarVentasRealizadas();
+    verificarCajaAbiertaHoy(); // 👈 Esto deshabilita el input y el botón si corresponde
+    cargarProductos();
+    setFechaActual();
+});
 
 // Guardar efectivo inicial en caja
 // document.getElementById('guardarEfectivoCaja').onclick = async function() {
