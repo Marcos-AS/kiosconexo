@@ -204,18 +204,59 @@
 
 document.getElementById('filtroStock').addEventListener('change', function() {
     filtroStockActivo = this.checked;
-    cargarProductos();
+    filtrarProductos();
 });
 
-async function cargarProductos() {
+async function filtrarProductos() {
+    const categoriaId = document.getElementById('filtroCategoria').value;
+    const proveedorId = document.getElementById('filtroProveedor').value;
+    const marcaId = document.getElementById('filtroMarca').value;
+    const eanBuscado = document.getElementById('buscarEan').value.trim();
+    const nombreBuscado = inputBuscarNombre.value.trim();
+
+    let url = '/productos';
+    const params = new URLSearchParams();
+
+    if (categoriaId) {
+        params.append('categoriaId', categoriaId);
+    }
+    if (proveedorId) {
+        params.append('proveedorId', proveedorId);
+    }
+    if (marcaId) {
+        params.append('marcaId', marcaId);
+    }
+    if (eanBuscado) {
+        params.append('ean', eanBuscado);
+    }
+    if (nombreBuscado) {
+        params.append('nombre', nombreBuscado);
+    }
+
+    if (params.toString()) {
+        url += `?${params.toString()}`;
+    }
+
+    const res = await fetch(url);
+    let data = await res.json();
+
+    // Aplica el filtro de stock aquí, combinando con los demás
+    if (filtroStockActivo) {
+        data = data.filter(prod => prod.stock > 0);
+    }
+
+    mostrarProductos(data);
+}
+
+    async function cargarProductos() {
     try {
         const res = await fetch('/productos');
         let productos = await res.json();
 
-        // Si el checkbox está marcado, filtramos
-        if (filtroStockActivo) {
-            productos = productos.filter(prod => prod.stock > 0);
-        }
+        // Elimina este bloque, ya no filtra por stock aquí
+        // if (filtroStockActivo) {
+        //     productos = productos.filter(prod => prod.stock > 0);
+        // }
 
         mostrarProductos(productos);
     } catch (e) {
@@ -228,6 +269,8 @@ async function cargarProductos() {
         fetch('/categorias')
             .then(res => res.json())
             .then(data => {
+                // Ordenar alfabéticamente por nombre
+                data.sort((a, b) => a.nombre.localeCompare(b.nombre));
                 const select = document.getElementById('filtroCategoria');
                 select.innerHTML = '<option value="">-- Mostrar todos --</option>';
                 data.forEach(cat => {
@@ -241,8 +284,10 @@ async function cargarProductos() {
 
     async function cargarMarcasFiltro() {
         try {
-            const res = await fetch('/marcas'); // Nueva ruta para obtener todas las marcas
+            const res = await fetch('/marcas');
             const data = await res.json();
+            // Ordenar alfabéticamente por nombre
+            data.sort((a, b) => a.nombre.localeCompare(b.nombre));
             const select = document.getElementById('filtroMarca');
             select.innerHTML = '<option value="">-- Mostrar todos --</option>';
             data.forEach(marca => {
@@ -604,7 +649,7 @@ async function filtrarProductos() {
     if (proveedorId) {
         params.append('proveedorId', proveedorId);
     }
-    if (marcaId) { // Añadir el parámetro de marca si está seleccionado
+    if (marcaId) {
         params.append('marcaId', marcaId);
     }
     if (eanBuscado) {
@@ -619,7 +664,13 @@ async function filtrarProductos() {
     }
 
     const res = await fetch(url);
-    const data = await res.json();
+    let data = await res.json();
+
+    // Aplica el filtro de stock aquí, combinando con los demás
+    if (filtroStockActivo) {
+        data = data.filter(prod => prod.stock > 0);
+    }
+
     mostrarProductos(data);
 }
 
