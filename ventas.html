@@ -108,6 +108,29 @@ function renderSelectProductos(filtro = '') {
             renderSelectProductos(this.value.trim());
         });
 
+        document.getElementById('buscarEanVenta').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const eanIngresado = this.value.trim();
+        if (!eanIngresado) return;
+        const prod = productos.find(p => p.ean === eanIngresado);
+        if (prod) {
+            // Si ya está en el detalle, suma cantidad
+            const existente = detalle.find(d => d.ean === prod.ean);
+            if (existente) {
+                existente.cantidad += 1;
+            } else {
+                detalle.push({ ean: prod.ean, cantidad: 1 });
+            }
+            renderDetalle();
+        } else {
+            alert('Producto no encontrado o sin stock');
+        }
+        this.value = '';
+        this.focus();
+    }
+});
+
         function renderDetalle() {
             const tbody = document.getElementById('detalleVenta');
             tbody.innerHTML = '';
@@ -120,7 +143,10 @@ function renderSelectProductos(filtro = '') {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${prod.nombre}</td>
-                    <td>${item.cantidad}</td>
+                    <td>
+                        <input type="number" min="1" value="${item.cantidad}" style="width:60px"
+                            onchange="cambiarCantidadDetalle(${idx}, this.value)">
+                    </td>
                     <td>${precio}</td>
                     <td>${subtotal.toFixed(2)}</td>
                     <td><button onclick="quitarProducto(${idx})">Quitar</button></td>
@@ -129,6 +155,14 @@ function renderSelectProductos(filtro = '') {
             });
             document.getElementById('totalVenta').textContent = total.toFixed(2);
         }
+
+        // Nueva función global para cambiar cantidad
+        window.cambiarCantidadDetalle = function(idx, nuevaCantidad) {
+            nuevaCantidad = parseInt(nuevaCantidad);
+            if (isNaN(nuevaCantidad) || nuevaCantidad < 1) return;
+            detalle[idx].cantidad = nuevaCantidad;
+            renderDetalle();
+        };
 
         window.quitarProducto = function(idx) {
             detalle.splice(idx, 1);
