@@ -74,6 +74,12 @@
 <input type="number" id="efectivoApertura" min="0" value="0">
 <button id="btnAbrirCaja">Abrir caja</button>
 
+<!-- NUEVO: Retiro de caja -->
+<label for="retiroCaja">Retiro de caja:</label>
+<input type="number" id="retiroCaja" min="1" value="0">
+<button id="btnRetirarCaja">Retirar</button>
+<!-- ...existing code... -->
+
     <script>
         let productos = [];
         let detalle = [];
@@ -276,6 +282,23 @@ document.getElementById('btnAbrirCaja').onclick = async function() {
     });
     const msg = await res.text();
     alert(msg);
+    mostrarTotalCaja();
+};
+
+document.getElementById('btnRetirarCaja').onclick = async function() {
+    const retiro = parseFloat(document.getElementById('retiroCaja').value) || 0;
+    if (retiro <= 0) {
+        alert('Ingrese un monto válido para retirar');
+        return;
+    }
+    const res = await fetch('/retiro-caja', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retiro })
+    });
+    const msg = await res.text();
+    alert(msg);
+    document.getElementById('retiroCaja').value = 0;
     mostrarTotalCaja();
 };
 

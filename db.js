@@ -760,3 +760,20 @@ app.use(express.static(__dirname));
 app.listen(port, () => {
     console.log('servidor corriendo');
 })
+
+app.post('/retiro-caja', async (req, res) => {
+    const { retiro } = req.body;
+    const monto = parseFloat(retiro) || 0;
+    if (monto <= 0) return res.status(400).send('Monto inválido');
+    const fechaHoy = new Date().toISOString().split('T')[0];
+    try {
+        await pool.query(
+            'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
+            [-monto, fechaHoy]
+        );
+        res.send('Retiro registrado correctamente');
+    } catch (err) {
+        console.error('Error al registrar retiro:', err);
+        res.status(500).send('Error al registrar retiro');
+    }
+});
