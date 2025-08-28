@@ -525,7 +525,7 @@ app.put('/productos/:ean/precio-venta', (req, res) => {
 
 app.get('/ventas', (req, res) => {
     let sql = `
-        SELECT v.id AS venta_id, v.fecha, v.total,
+        SELECT v.id AS venta_id, v.fecha, v.total, v.medio_pago,
                dv.producto, p.nombre AS producto_nombre, dv.cantidad, dv.precio_unitario,
                dv.compra_id, c.precio_compra
         FROM ventas v
@@ -553,6 +553,7 @@ app.get('/ventas', (req, res) => {
                     venta_id: row.venta_id,
                     fecha: row.fecha,
                     total: row.total,
+                    medio_pago: row.medio_pago, // 👈 Agregado
                     detalle: []
                 };
                 ventas.push(actual);
@@ -562,7 +563,6 @@ app.get('/ventas', (req, res) => {
                 producto_nombre: row.producto_nombre,
                 cantidad: row.cantidad,
                 precio_unitario: row.precio_unitario,
-                // compra_id: row.compra_id, // Ya no lo necesitas en frontend
                 precio_compra: row.precio_compra
             });
         });

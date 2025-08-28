@@ -58,6 +58,7 @@
             <tr>
                 <th>Fecha</th>
                 <th>Total</th>
+                <th>Medio de pago</th> <!-- 👈 Nueva columna -->
                 <th>Producto</th>
                 <th>Cantidad</th>
                 <th>Precio Venta</th>
@@ -219,6 +220,7 @@ async function cargarVentasRealizadas() {
         trVenta.innerHTML = `
             <td>${new Date(v.fecha).toLocaleString()}</td>
             <td>$${v.total}</td>
+            <td>${v.medio_pago || '-'}</td> <!-- 👈 Mostrar medio de pago -->
             <td colspan="4"><strong>Ver productos ▼</strong></td>
         `;
         tbody.appendChild(trVenta);
