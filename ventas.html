@@ -51,6 +51,8 @@
     <input type="date" id="filtroFecha">
     <button id="btnFiltrarFecha">Filtrar</button>
     <button id="btnLimpiarFecha">Limpiar</button>
+    <!-- NUEVO BOTÓN -->
+    <button id="btnExpandirTodas">Expandir/Colapsar todas</button>
     <table border="1">
         <thead>
             <tr>
@@ -191,6 +193,8 @@ function renderSelectProductos(filtro = '') {
             document.getElementById('buscarEanVenta').focus();
         };
 
+let estadoExpandidoGlobal = false; // Estado global para expandir/colapsar
+
 async function cargarVentasRealizadas() {
     const fecha = document.getElementById('filtroFecha').value;
     let url = '/ventas';
@@ -204,7 +208,7 @@ async function cargarVentasRealizadas() {
     tbody.innerHTML = '';
 
     let totalPeriodo = 0;
-    let totalDiferencia = 0; // 🔹 acumulador de ganancia
+    let totalDiferencia = 0;
 
     ventas.forEach((v, ventaIndex) => {
         totalPeriodo += parseFloat(v.total) || 0;
@@ -219,33 +223,30 @@ async function cargarVentasRealizadas() {
         `;
         tbody.appendChild(trVenta);
 
-v.detalle.forEach(d => {
-    const pv = parseFloat(d.precio_unitario) || 0;
-    const pc = parseFloat(d.precio_compra) || 0;
-    const cant = parseFloat(d.cantidad) || 0;
-    const diferencia = (pv - pc) * cant;
-    const porcentajeGanancia = pc ? ((pv - pc) / pc) * 100 : 0;
+        v.detalle.forEach(d => {
+            const pv = parseFloat(d.precio_unitario) || 0;
+            const pc = parseFloat(d.precio_compra) || 0;
+            const cant = parseFloat(d.cantidad) || 0;
+            const diferencia = (pv - pc) * cant;
+            const porcentajeGanancia = pc ? ((pv - pc) / pc) * 100 : 0;
 
+            totalDiferencia += diferencia;
 
-    // 🔹 Acumular diferencia global
-    totalDiferencia += diferencia;
-
-    const trDetalle = document.createElement('tr');
-    trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
-    trDetalle.style.display = 'none';
-    trDetalle.innerHTML = `
-        <td></td>
-        <td></td>
-        <td>${d.producto_nombre || d.producto}</td>
-        <td>${cant}</td>
-        <td>${pv.toFixed(2)}</td>
-        <td>${pc ? pc.toFixed(2) : '-'}</td>
-        <td>${pc ? diferencia.toFixed(2) : '-'}</td> <!-- 🔹 diferencia por fila -->
-        <td>${pc ? porcentajeGanancia.toFixed(2) + '%' : '-'}</td>
-        `;
-    tbody.appendChild(trDetalle);
-});
-
+            const trDetalle = document.createElement('tr');
+            trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
+            trDetalle.style.display = estadoExpandidoGlobal ? '' : 'none';
+            trDetalle.innerHTML = `
+                <td></td>
+                <td></td>
+                <td>${d.producto_nombre || d.producto}</td>
+                <td>${cant}</td>
+                <td>${pv.toFixed(2)}</td>
+                <td>${pc ? pc.toFixed(2) : '-'}</td>
+                <td>${pc ? diferencia.toFixed(2) : '-'}</td>
+                <td>${pc ? porcentajeGanancia.toFixed(2) + '%' : '-'}</td>
+            `;
+            tbody.appendChild(trDetalle);
+        });
 
         trVenta.addEventListener('click', () => {
             const filasDetalle = document.querySelectorAll(`.detalle-venta-${ventaIndex}`);
@@ -258,10 +259,22 @@ v.detalle.forEach(d => {
         });
     });
 
-    // 🔹 Mostrar totales
     document.getElementById('totalVentasPeriodo').textContent = totalPeriodo.toFixed(2);
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
 }
+
+// NUEVO: Botón para expandir/colapsar todas las filas
+document.getElementById('btnExpandirTodas').onclick = function() {
+    estadoExpandidoGlobal = !estadoExpandidoGlobal;
+    const filas = document.querySelectorAll('[class^="detalle-venta-"]');
+    filas.forEach(fila => {
+        fila.style.display = estadoExpandidoGlobal ? '' : 'none';
+    });
+    // Cambia el texto de todos los botones de cada venta
+    document.querySelectorAll('td[colspan] strong').forEach(flecha => {
+        flecha.textContent = estadoExpandidoGlobal ? 'Ocultar productos ▲' : 'Ver productos ▼';
+    });
+};
 
 async function mostrarTotalCaja() {
     const res = await fetch('/caja');
