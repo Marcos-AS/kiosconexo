@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de compras por producto</title>
+</head>
+<body>
+    <h1>Historial de compras por producto</h1>
+    <label>Buscar producto:</label>
+    <input type="text" id="buscadorProducto" placeholder="Nombre o EAN">
+    <div id="comprasAgrupadas"></div>
+
+<script>
+async function cargarCompras() {
+    const res = await fetch('/compras');
+    return await res.json();
+}
+
+let comprasGlobal = [];
+let agrupadoGlobal = {};
+
+function agruparCompras(compras) {
+    const agrupado = {};
+    compras.forEach(c => {
+        if (!agrupado[c.producto_nombre]) agrupado[c.producto_nombre] = [];
+        agrupado[c.producto_nombre].push(c);
+    });
+    return agrupado;
+}
+
+function renderComprasAgrupadas(filtro = '') {
+    const contenedor = document.getElementById('comprasAgrupadas');
+    contenedor.innerHTML = '';
+
+    Object.entries(agrupadoGlobal).forEach(([producto, lista]) => {
+        if (
+            !producto.toLowerCase().includes(filtro.toLowerCase()) &&
+            !lista.some(c => c.producto_nombre.toLowerCase().includes(filtro.toLowerCase()) || c.producto_ean?.includes(filtro))
+        ) return;
+
+        lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        // Verifica si hay algún valor de gramos en la lista
+        const mostrarGramos = lista.some(c => c.gramos !== null && c.gramos !== undefined && c.gramos !== '');
+
+        const div = document.createElement('div');
+        div.style.marginBottom = '15px';
+        div.innerHTML = `
+            <h3>${producto}</h3>
+            <table border="1" style="width:100%; font-size:0.95em;">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Proveedor</th>
+                        <th>Cantidad</th>
+                        ${mostrarGramos ? '<th>Gramos</th>' : ''}
+                        <th>Precio de compra</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${lista.map(c => `
+                        <tr>
+                            <td>${c.fecha.split('T')[0]}</td>
+                            <td>${c.proveedor_nombre}</td>
+                            <td>${c.cantidad}</td>
+                            ${mostrarGramos ? `<td>${c.gramos ?? '-'}</td>` : ''}
+                            <td>$${parseFloat(c.precio_compra).toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        contenedor.appendChild(div);
+    });
+}
+
+document.getElementById('buscadorProducto').addEventListener('input', function() {
+    renderComprasAgrupadas(this.value.trim());
+});
+
+window.addEventListener('DOMContentLoaded', async () => {
+    comprasGlobal = await cargarCompras();
+    agrupadoGlobal = agruparCompras(comprasGlobal);
+    renderComprasAgrupadas();
+});
+</script>
+</body>
+</html>

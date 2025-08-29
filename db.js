@@ -489,12 +489,12 @@ app.post('/compras', async (req, res) => {
 // Listar compras recientes
 app.get('/compras', (req, res) => {
     connection.query(
-        `SELECT c.fecha, p.nombre as proveedor_nombre, pr.nombre as producto_nombre, c.cantidad, c.precio_compra, c.id
+        `SELECT c.fecha, p.nombre as proveedor_nombre, pr.nombre as producto_nombre, pr.gramos, c.cantidad, c.precio_compra, c.id
          FROM compras c
          JOIN proveedor p ON c.proveedor = p.id
          JOIN producto pr ON c.producto = pr.ean
          ORDER BY c.fecha DESC
-         LIMIT 500`,
+         LIMIT 1000`,
         (err, results) => {
             if (err) return res.status(500).send('Error al obtener compras');
             res.json(results);
