@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Agregar Promoción</title>
+</head>
+<body>
+    <h1>Agregar Promoción</h1>
+    <form id="formPromocion">
+        <label>EAN del producto:</label>
+        <input type="text" id="ean" required>
+        <br>
+        <label>Cantidad para promoción:</label>
+        <input type="number" id="cantidad" min="1" required>
+        <br>
+        <label>Precio promocional:</label>
+        <input type="number" id="precioPromocion" min="0" step="0.01" required>
+        <br>
+        <button type="submit">Agregar promoción</button>
+    </form>
+    <div id="mensaje"></div>
+    <script>
+        document.getElementById('formPromocion').onsubmit = async function(e) {
+            e.preventDefault();
+            const ean = document.getElementById('ean').value.trim();
+            const cantidad = parseInt(document.getElementById('cantidad').value, 10);
+            const precioPromocion = parseFloat(document.getElementById('precioPromocion').value);
+
+            const res = await fetch('/promociones', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ producto_ean: ean, cantidad, precio_promocion: precioPromocion })
+            });
+            const msg = await res.text();
+            document.getElementById('mensaje').textContent = msg;
+        };
+    </script>
+</body>
+</html>

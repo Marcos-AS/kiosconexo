@@ -383,23 +383,38 @@ app.post('/ventas', async (req, res) => {
 
       if (stock < cantidad) throw new Error(`Stock insuficiente para el producto ${ean}`);
 
+      // Consultar promoción
+      const [promoDB] = await connection.query(
+        'SELECT cantidad, precio_promocion FROM promociones WHERE producto_ean = ? ORDER BY cantidad DESC LIMIT 1',
+        [ean]
+      );
+      let subtotal = 0;
+      let precioUnitario = precio_venta;
+
+      if (promoDB.length > 0 && cantidad >= promoDB[0].cantidad) {
+        // Aplica precio unitario promocional a todas las unidades
+        const precioUnitarioPromo = promoDB[0].precio_promocion / promoDB[0].cantidad;
+        subtotal = cantidad * precioUnitarioPromo;
+        precioUnitario = precioUnitarioPromo;
+      } else {
+        subtotal = cantidad * precio_venta;
+        precioUnitario = precio_venta;
+      }
+      total += subtotal;
+
       // Tomar precio_compra más reciente
       const [comprasDB] = await connection.query(
         'SELECT id, precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
         [ean]
       );
       const compraId = comprasDB.length > 0 ? comprasDB[0].id : null;
-      const precioCompra = comprasDB.length > 0 ? comprasDB[0].precio_compra : null;
-
-      const subtotal = cantidad * precio_venta;
-      total += subtotal;
 
       // Insertar detalle_venta
       await connection.query(
         `INSERT INTO detalle_venta
           (venta_id, producto, cantidad, precio_unitario, compra_id)
          VALUES (?, ?, ?, ?, ?)`,
-        [ventaId, ean, cantidad, precio_venta, compraId]
+        [ventaId, ean, cantidad, precioUnitario, compraId]
       );
 
       // Actualizar stock
@@ -433,10 +448,6 @@ app.post('/ventas', async (req, res) => {
     connection.release();
   }
 });
-
-
-
-
 
 
 // Endpoint para ver el total de caja
@@ -756,10 +767,33 @@ app.get('/caja-abierta', async (req, res) => {
     }
 });
 
-app.use(express.static(__dirname));
-app.listen(port, () => {
-    console.log('servidor corriendo');
-})
+app.get('/promociones', (req, res) => {
+    connection.query(
+        'SELECT producto_ean, cantidad, precio_promocion FROM promociones',
+        (err, results) => {
+            if (err) return res.status(500).send('Error al obtener promociones');
+            res.json(results);
+        }
+    );
+});
+
+app.post('/promociones', (req, res) => {
+    const { producto_ean, cantidad, precio_promocion } = req.body;
+    if (!producto_ean || !cantidad || !precio_promocion) {
+        return res.status(400).send('Faltan datos');
+    }
+    connection.query(
+        'INSERT INTO promociones (producto_ean, cantidad, precio_promocion) VALUES (?, ?, ?)',
+        [producto_ean, cantidad, precio_promocion],
+        (err) => {
+            if (err) {
+                console.error('Error al agregar promoción:', err);
+                return res.status(500).send('Error al agregar promoción');
+            }
+            res.send('Promoción agregada correctamente');
+        }
+    );
+});
 
 app.post('/retiro-caja', async (req, res) => {
     const { retiro } = req.body;
@@ -777,3 +811,8 @@ app.post('/retiro-caja', async (req, res) => {
         res.status(500).send('Error al registrar retiro');
     }
 });
+
+app.use(express.static(__dirname));
+app.listen(port, () => {
+    console.log('servidor corriendo');
+})
