@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Agregar Promoción Combinada</title>
+</head>
+<body>
+    <h1>Agregar Promoción Combinada</h1>
+    <form id="formPromocionCombinada">
+        <label>Nombre de la promoción:</label>
+        <input type="text" id="nombrePromocion" required>
+        <br>
+        <label>Precio promocional total:</label>
+        <input type="number" id="precioPromocion" min="0" step="0.01" required>
+        <br>
+        <h3>Productos de la promoción</h3>
+        <div id="productosPromo"></div>
+        <button type="button" id="agregarProductoBtn">Agregar producto</button>
+        <br><br>
+        <button type="submit">Agregar promoción combinada</button>
+    </form>
+    <div id="mensaje"></div>
+    <script>
+        // Permite agregar varios productos a la promoción
+        function crearProductoInput() {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label>EAN:</label>
+                <input type="text" class="ean" required>
+                <label>Cantidad:</label>
+                <input type="number" class="cantidad" min="1" required>
+                <button type="button" onclick="this.parentElement.remove()">Quitar</button>
+                <br>
+            `;
+            return div;
+        }
+
+        document.getElementById('agregarProductoBtn').onclick = function() {
+            document.getElementById('productosPromo').appendChild(crearProductoInput());
+        };
+
+        // Agrega al menos dos productos por defecto
+        document.getElementById('productosPromo').appendChild(crearProductoInput());
+        document.getElementById('productosPromo').appendChild(crearProductoInput());
+
+        document.getElementById('formPromocionCombinada').onsubmit = async function(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('nombrePromocion').value.trim();
+            const precio_promocion = parseFloat(document.getElementById('precioPromocion').value);
+
+            const productos = [];
+            document.querySelectorAll('#productosPromo > div').forEach(div => {
+                const ean = div.querySelector('.ean').value.trim();
+                const cantidad = parseInt(div.querySelector('.cantidad').value, 10);
+                if (ean && cantidad > 0) {
+                    productos.push({ ean, cantidad });
+                }
+            });
+
+            if (productos.length < 2) {
+                document.getElementById('mensaje').textContent = 'Agrega al menos dos productos.';
+                return;
+            }
+
+            const res = await fetch('/promociones-combinadas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre, precio_promocion, productos })
+            });
+            const msg = await res.text();
+            document.getElementById('mensaje').textContent = msg;
+        };
+    </script>
+</body>
+</html>
