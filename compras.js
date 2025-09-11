@@ -69,3 +69,17 @@ app.post('/compras', async (req, res) => {
         res.status(500).send('Error al registrar compra');
     }
 });
+
+app.get('/compras/precio-ultimo', async (req, res) => {
+    const { producto } = req.query;
+    if (!producto) return res.status(400).send('Falta producto');
+    try {
+        const [rows] = await pool.query(
+            'SELECT precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
+            [producto]
+        );
+        res.json({ precio_compra: rows.length > 0 ? rows[0].precio_compra : 0 });
+    } catch (err) {
+        res.status(500).send('Error al obtener precio');
+    }
+});

@@ -6,85 +6,114 @@ app.post('/ventas', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // Reemplaza el cálculo de promociones por esta lógica antes de calcular el total:
+    // Crear la venta y obtener el id
+    const [ventaResult] = await connection.query(
+      'INSERT INTO ventas (fecha, medio_pago, total) VALUES (NOW(), ?, 0)',
+      [medio_pago || 'efectivo']
+    );
+    const ventaId = ventaResult.insertId;
+
+    // Obtener TODAS las promociones (combinadas e individuales)
     const [promosCombinadas] = await connection.query(
-      `SELECT p.id, p.precio_total, pp.producto_ean, pp.cantidad
+      `SELECT p.id, p.nombre, p.precio_total, pp.producto_ean, pp.cantidad
        FROM promocion p
        JOIN promocion_productos pp ON pp.promocion_id = p.id`
     );
 
-    function encontrarPromocionAplicable(productosCarrito, promosCombinadas) {
-      // Agrupa promociones por id
+    // Agrupa promociones por id
+    function agruparPromos(promosCombinadas) {
       const promos = {};
       for (const promo of promosCombinadas) {
         if (!promos[promo.id]) promos[promo.id] = { precio_total: promo.precio_total, productos: [] };
         promos[promo.id].productos.push({ ean: promo.producto_ean, cantidad: promo.cantidad });
       }
-      // Busca si alguna promoción se puede aplicar
+      return promos;
+    }
+
+    // Busca si alguna promoción se puede aplicar
+    function encontrarPromocionAplicable(productosCarrito, promosCombinadas) {
+      const promos = agruparPromos(promosCombinadas);
       for (const promoId in promos) {
         const promo = promos[promoId];
-        let aplica = true;
+        // Busca cuántos productos del carrito coinciden con la promo
+        let productosCoinciden = 0;
         let veces = Infinity;
         for (const prod of promo.productos) {
           const enCarrito = productosCarrito.find(p => p.ean === prod.ean);
-          if (!enCarrito || enCarrito.cantidad < prod.cantidad) {
-            aplica = false;
-            break;
+          if (enCarrito && enCarrito.cantidad >= prod.cantidad) {
+            productosCoinciden++;
+            veces = Math.min(veces, Math.floor(enCarrito.cantidad / prod.cantidad));
           }
-          veces = Math.min(veces, Math.floor(enCarrito.cantidad / prod.cantidad));
         }
-        if (aplica && veces > 0) {
-          return { promo, veces };
+        // Si hay al menos 2 productos que cumplen la cantidad mínima, aplica la promo
+        if (productosCoinciden >= 2 && veces > 0) {
+          // Solo toma los productos que cumplen
+          const productosAplicados = promo.productos.filter(prod => {
+            const enCarrito = productosCarrito.find(p => p.ean === prod.ean);
+            return enCarrito && enCarrito.cantidad >= prod.cantidad;
+          });
+          return { promo: { ...promo, productos: productosAplicados }, veces };
         }
       }
       return null;
     }
 
     // Aplica promociones combinadas primero
-    let productosRestantes = [...productos];
+    let productosRestantes = productos.map(p => ({ ...p })); // copia profunda
     let total = 0;
     while (true) {
       const promoAplicable = encontrarPromocionAplicable(productosRestantes, promosCombinadas);
       if (!promoAplicable) break;
-      total += promoAplicable.promo.precio_total * promoAplicable.veces;
-      // Resta productos usados en la promoción
-      for (const prod of promoAplicable.promo.productos) {
+      const { promo, veces } = promoAplicable;
+      total += promo.precio_total * veces;
+
+      // Calcula precio unitario para cada producto de la promo combinada
+      const totalUnidades = promo.productos.reduce((acc, prod) => acc + prod.cantidad, 0);
+      const precioUnitarioPromo = promo.precio_total / totalUnidades;
+
+      for (const prod of promo.productos) {
         const prodCarrito = productosRestantes.find(p => p.ean === prod.ean);
-        prodCarrito.cantidad -= prod.cantidad * promoAplicable.veces;
+        // Tomar precio_compra más reciente
+        const [comprasDB] = await connection.query(
+          'SELECT id, precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
+          [prod.ean]
+        );
+        const compraId = comprasDB.length > 0 ? comprasDB[0].id : null;
+
+        // Insertar detalle_venta por cada producto de la promo
+        await connection.query(
+          `INSERT INTO detalle_venta
+            (venta_id, producto, cantidad, precio_unitario, compra_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [ventaId, prod.ean, prod.cantidad * veces, precioUnitarioPromo, compraId]
+        );
+
+        // Actualizar stock
+        await connection.query(
+          'UPDATE producto SET stock = stock - ? WHERE ean = ?',
+          [prod.cantidad * veces, prod.ean]
+        );
+
+        // Resta productos usados en la promoción
+        prodCarrito.cantidad -= prod.cantidad * veces;
       }
       // Elimina productos con cantidad 0
       productosRestantes = productosRestantes.filter(p => p.cantidad > 0);
     }
 
-    // Luego calcula el resto como venta normal
-    for (const { ean, cantidad } of productosRestantes) {
-      // Obtener stock y precio_venta del producto
+    // Luego calcula el resto como venta normal (sin promociones)
+    for (const { ean, cantidad, precio_unitario } of productos) {
+      // Obtener stock del producto
       const [productosDB] = await connection.query(
-        'SELECT stock, precio_venta FROM producto WHERE ean = ?',
+        'SELECT stock FROM producto WHERE ean = ?',
         [ean]
       );
       if (productosDB.length === 0) throw new Error(`Producto ${ean} no existe`);
-      const { stock, precio_venta } = productosDB[0];
+      const { stock } = productosDB[0];
 
       if (stock < cantidad) throw new Error(`Stock insuficiente para el producto ${ean}`);
 
-      // Consultar promoción
-      const [promoDB] = await connection.query(
-        'SELECT cantidad, precio_promocion FROM promociones WHERE producto_ean = ? ORDER BY cantidad DESC LIMIT 1',
-        [ean]
-      );
-      let subtotal = 0;
-      let precioUnitario = precio_venta;
-
-      if (promoDB.length > 0 && cantidad >= promoDB[0].cantidad) {
-        // Aplica precio unitario promocional a todas las unidades
-        const precioUnitarioPromo = promoDB[0].precio_promocion / promoDB[0].cantidad;
-        subtotal = cantidad * precioUnitarioPromo;
-        precioUnitario = precioUnitarioPromo;
-      } else {
-        subtotal = cantidad * precio_venta;
-        precioUnitario = precio_venta;
-      }
+      const subtotal = cantidad * precio_unitario;
       total += subtotal;
 
       // Tomar precio_compra más reciente
@@ -99,7 +128,7 @@ app.post('/ventas', async (req, res) => {
         `INSERT INTO detalle_venta
           (venta_id, producto, cantidad, precio_unitario, compra_id)
          VALUES (?, ?, ?, ?, ?)`,
-        [ventaId, ean, cantidad, precioUnitario, compraId]
+        [ventaId, ean, cantidad, precio_unitario, compraId]
       );
 
       // Actualizar stock
@@ -187,85 +216,114 @@ app.post('/ventas', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // Reemplaza el cálculo de promociones por esta lógica antes de calcular el total:
+    // Crear la venta y obtener el id
+    const [ventaResult] = await connection.query(
+      'INSERT INTO ventas (fecha, medio_pago, total) VALUES (NOW(), ?, 0)',
+      [medio_pago || 'efectivo']
+    );
+    const ventaId = ventaResult.insertId;
+
+    // Obtener TODAS las promociones (combinadas e individuales)
     const [promosCombinadas] = await connection.query(
-      `SELECT p.id, p.precio_total, pp.producto_ean, pp.cantidad
+      `SELECT p.id, p.nombre, p.precio_total, pp.producto_ean, pp.cantidad
        FROM promocion p
        JOIN promocion_productos pp ON pp.promocion_id = p.id`
     );
 
-    function encontrarPromocionAplicable(productosCarrito, promosCombinadas) {
-      // Agrupa promociones por id
+    // Agrupa promociones por id
+    function agruparPromos(promosCombinadas) {
       const promos = {};
       for (const promo of promosCombinadas) {
-        if (!promos[promo.id]) promos[promo.id] = { precio_total: promo.precio_total, productos: [] };
+        if (!proms[promo.id]) promos[promo.id] = { precio_total: promo.precio_total, productos: [] };
         promos[promo.id].productos.push({ ean: promo.producto_ean, cantidad: promo.cantidad });
       }
-      // Busca si alguna promoción se puede aplicar
+      return promos;
+    }
+
+    // Busca si alguna promoción se puede aplicar
+    function encontrarPromocionAplicable(productosCarrito, promosCombinadas) {
+      const promos = agruparPromos(promosCombinadas);
       for (const promoId in promos) {
         const promo = promos[promoId];
-        let aplica = true;
+        // Busca cuántos productos del carrito coinciden con la promo
+        let productosCoinciden = 0;
         let veces = Infinity;
         for (const prod of promo.productos) {
           const enCarrito = productosCarrito.find(p => p.ean === prod.ean);
-          if (!enCarrito || enCarrito.cantidad < prod.cantidad) {
-            aplica = false;
-            break;
+          if (enCarrito && enCarrito.cantidad >= prod.cantidad) {
+            productosCoinciden++;
+            veces = Math.min(veces, Math.floor(enCarrito.cantidad / prod.cantidad));
           }
-          veces = Math.min(veces, Math.floor(enCarrito.cantidad / prod.cantidad));
         }
-        if (aplica && veces > 0) {
-          return { promo, veces };
+        // Si hay al menos 2 productos que cumplen la cantidad mínima, aplica la promo
+        if (productosCoinciden >= 2 && veces > 0) {
+          // Solo toma los productos que cumplen
+          const productosAplicados = promo.productos.filter(prod => {
+            const enCarrito = productosCarrito.find(p => p.ean === prod.ean);
+            return enCarrito && enCarrito.cantidad >= prod.cantidad;
+          });
+          return { promo: { ...promo, productos: productosAplicados }, veces };
         }
       }
       return null;
     }
 
     // Aplica promociones combinadas primero
-    let productosRestantes = [...productos];
+    let productosRestantes = productos.map(p => ({ ...p })); // copia profunda
     let total = 0;
     while (true) {
       const promoAplicable = encontrarPromocionAplicable(productosRestantes, promosCombinadas);
       if (!promoAplicable) break;
-      total += promoAplicable.promo.precio_total * promoAplicable.veces;
-      // Resta productos usados en la promoción
-      for (const prod of promoAplicable.promo.productos) {
+      const { promo, veces } = promoAplicable;
+      total += promo.precio_total * veces;
+
+      // Calcula precio unitario para cada producto de la promo combinada
+      const totalUnidades = promo.productos.reduce((acc, prod) => acc + prod.cantidad, 0);
+      const precioUnitarioPromo = promo.precio_total / totalUnidades;
+
+      for (const prod of promo.productos) {
         const prodCarrito = productosRestantes.find(p => p.ean === prod.ean);
-        prodCarrito.cantidad -= prod.cantidad * promoAplicable.veces;
+        // Tomar precio_compra más reciente
+        const [comprasDB] = await connection.query(
+          'SELECT id, precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
+          [prod.ean]
+        );
+        const compraId = comprasDB.length > 0 ? comprasDB[0].id : null;
+
+        // Insertar detalle_venta por cada producto de la promo
+        await connection.query(
+          `INSERT INTO detalle_venta
+            (venta_id, producto, cantidad, precio_unitario, compra_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [ventaId, prod.ean, prod.cantidad * veces, precioUnitarioPromo, compraId]
+        );
+
+        // Actualizar stock
+        await connection.query(
+          'UPDATE producto SET stock = stock - ? WHERE ean = ?',
+          [prod.cantidad * veces, prod.ean]
+        );
+
+        // Resta productos usados en la promoción
+        prodCarrito.cantidad -= prod.cantidad * veces;
       }
       // Elimina productos con cantidad 0
       productosRestantes = productosRestantes.filter(p => p.cantidad > 0);
     }
 
-    // Luego calcula el resto como venta normal
-    for (const { ean, cantidad } of productosRestantes) {
-      // Obtener stock y precio_venta del producto
+    // Luego calcula el resto como venta normal (sin promociones)
+    for (const { ean, cantidad, precio_unitario } of productos) {
+      // Obtener stock del producto
       const [productosDB] = await connection.query(
-        'SELECT stock, precio_venta FROM producto WHERE ean = ?',
+        'SELECT stock FROM producto WHERE ean = ?',
         [ean]
       );
       if (productosDB.length === 0) throw new Error(`Producto ${ean} no existe`);
-      const { stock, precio_venta } = productosDB[0];
+      const { stock } = productosDB[0];
 
       if (stock < cantidad) throw new Error(`Stock insuficiente para el producto ${ean}`);
 
-      // Consultar promoción
-      const [promoDB] = await connection.query(
-        'SELECT cantidad, precio_promocion FROM promociones WHERE producto_ean = ? ORDER BY cantidad DESC LIMIT 1',
-        [ean]
-      );
-      let subtotal = 0;
-      let precioUnitario = precio_venta;
-
-      if (promoDB.length > 0 && cantidad >= promoDB[0].cantidad) {
-        // Aplica precio unitario promocional a todas las unidades
-        const precioUnitarioPromo = promoDB[0].precio_promocion / promoDB[0].cantidad;
-        subtotal = cantidad * precioUnitarioPromo;
-        precioUnitario = precioUnitarioPromo;
-      } else {
-        subtotal = cantidad * precio_venta;
-        precioUnitario = precio_venta;
-      }
+      const subtotal = cantidad * precio_unitario;
       total += subtotal;
 
       // Tomar precio_compra más reciente
@@ -280,7 +338,7 @@ app.post('/ventas', async (req, res) => {
         `INSERT INTO detalle_venta
           (venta_id, producto, cantidad, precio_unitario, compra_id)
          VALUES (?, ?, ?, ?, ?)`,
-        [ventaId, ean, cantidad, precioUnitario, compraId]
+        [ventaId, ean, cantidad, precio_unitario, compraId]
       );
 
       // Actualizar stock

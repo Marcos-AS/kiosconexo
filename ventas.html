@@ -87,16 +87,17 @@
         let productos = [];
         let detalle = [];
         let promociones = [];
+        let promocionesCombinadas = [];
 
-    async function cargarPromociones() {
-        const res = await fetch('/promociones');
-        promociones = await res.json();
+    async function cargarPromocionesCombinadas() {
+        const res = await fetch('/promociones-combinadas');
+        promocionesCombinadas = await res.json();
     }
 
-        async function cargarProductos() {
-            const res = await fetch('/productos');
-            productos = await res.json();
-            renderSelectProductos();
+        async function cargarPromociones() {
+            const res = await fetch('/promociones');
+            promociones = await res.json();
+            await cargarPromocionesCombinadas();
         }
 
 function renderSelectProductos(filtro = '') {
@@ -146,21 +147,107 @@ function renderSelectProductos(filtro = '') {
     }
 });
 
+function aplicarPromocionesCombinadas(detalle) {
+    // Copia profunda del detalle
+    let productosRestantes = detalle.map(p => ({ ...p }));
+    let itemsPromo = [];
+    let totalPromo = 0;
+
+    // Agrupa promociones combinadas por id
+    function agruparPromos(promosCombinadas) {
+        const promos = {};
+        for (const promo of promocionesCombinadas) {
+            if (!promos[promo.id]) promos[promo.id] = { precio_total: promo.precio_total, productos: [] };
+            promo.productos.forEach(prod => {
+                promos[promo.id].productos.push({ ean: prod.producto_ean, cantidad: prod.cantidad });
+            });
+        }
+        return promos;
+    }
+
+    function encontrarPromocionAplicable(productosCarrito, promosCombinadas) {
+        const promos = agruparPromos(promosCombinadas);
+        for (const promoId in promos) {
+            const promo = promos[promoId];
+            let aplica = true;
+            let veces = Infinity;
+            for (const prod of promo.productos) {
+                const enCarrito = productosCarrito.find(p => p.ean === prod.ean);
+                if (!enCarrito || enCarrito.cantidad < prod.cantidad) {
+                    aplica = false;
+                    break;
+                }
+                veces = Math.min(veces, Math.floor(enCarrito.cantidad / prod.cantidad));
+            }
+            if (aplica && veces > 0) {
+                return { promo, veces };
+            }
+        }
+        return null;
+    }
+
+    while (true) {
+        const promoAplicable = encontrarPromocionAplicable(productosRestantes, promocionesCombinadas);
+        if (!promoAplicable) break;
+        const { promo, veces } = promoAplicable;
+        totalPromo += promo.precio_total * veces;
+
+        // Calcula precio unitario para cada producto de la promo combinada
+        const totalUnidades = promo.productos.reduce((acc, prod) => acc + prod.cantidad, 0);
+        const precioUnitarioPromo = promo.precio_total / totalUnidades;
+
+        for (const prod of promo.productos) {
+            itemsPromo.push({
+                ean: prod.ean,
+                cantidad: prod.cantidad * veces,
+                precio: precioUnitarioPromo,
+                subtotal: precioUnitarioPromo * prod.cantidad * veces,
+                promoCombinada: true
+            });
+            // Resta productos usados en la promoción
+            const prodCarrito = productosRestantes.find(p => p.ean === prod.ean);
+            prodCarrito.cantidad -= prod.cantidad * veces;
+        }
+        productosRestantes = productosRestantes.filter(p => p.cantidad > 0);
+    }
+    return { itemsPromo, productosRestantes, totalPromo };
+}
+
         function renderDetalle() {
     const tbody = document.getElementById('detalleVenta');
     tbody.innerHTML = '';
     let total = 0;
-    detalle.forEach((item, idx) => {
+
+    // Aplica promociones combinadas primero
+    const { itemsPromo, productosRestantes, totalPromo } = aplicarPromocionesCombinadas(detalle);
+
+    // Renderiza productos con promo combinada
+    itemsPromo.forEach((item, idx) => {
+        const prod = productos.find(p => p.ean === item.ean);
+        total += item.subtotal;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${prod ? prod.nombre : item.ean}</td>
+            <td>${item.cantidad}</td>
+            <td>${item.precio.toFixed(2)} <span style="color:blue">(Promo combinada)</span></td>
+            <td>${item.subtotal.toFixed(2)}</td>
+            <td></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Renderiza el resto de productos (promos individuales o normales)
+    productosRestantes.forEach((item, idx) => {
         const prod = productos.find(p => p.ean === item.ean);
         let precio = prod.precio_venta ?? 0;
         let subtotal = precio * item.cantidad;
+        let promoAplicada = false;
 
-        // Buscar promoción válida para el producto
+        // Buscar promoción individual válida para el producto
         const promo = promociones
             .filter(p => p.producto_ean === item.ean)
             .sort((a, b) => b.cantidad - a.cantidad)[0];
 
-        let promoAplicada = false;
         if (promo && item.cantidad >= promo.cantidad) {
             const precioUnitarioPromo = promo.precio_promocion / promo.cantidad;
             subtotal = item.cantidad * precioUnitarioPromo;
@@ -350,29 +437,22 @@ async function verificarCajaAbiertaHoy() {
     }
 }
 
-// ...existing code...
+async function cargarProductos() {
+    const res = await fetch('/productos');
+    productos = await res.json();
+    renderSelectProductos();
+}
 
 document.addEventListener("DOMContentLoaded", () => {
     const hoy = new Date().toISOString().split("T")[0];
     document.getElementById("filtroFecha").value = hoy;
     cargarVentasRealizadas();
     verificarCajaAbiertaHoy();
-    cargarProductos();
-    cargarPromociones(); // 👈 Agrega esta línea
+    cargarProductos(); // 👈 agrega esta línea para cargar productos y llenar el select
+    cargarPromociones(); // ya carga ambas
     setFechaActual();
 });
 
-// Guardar efectivo inicial en caja
-// document.getElementById('guardarEfectivoCaja').onclick = async function() {
-//     const efectivo = parseFloat(document.getElementById('efectivoCaja').value) || 0;
-//     await fetch('/caja-inicial', {
-//         method: 'POST',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify({ efectivo })
-//     });
-//     alert('Efectivo inicial guardado');
-//     mostrarTotalCaja();
-// };
 
 // Modifica el registro de venta para enviar el medio de pago
 document.getElementById('registrarVenta').onclick = async function() {
@@ -384,10 +464,38 @@ document.getElementById('registrarVenta').onclick = async function() {
     const fechaVenta = ahora.toISOString().slice(0, 19).replace('T', ' ');
     const medioPago = document.getElementById('medioPago').value;
 
+    // Aplica promociones combinadas y separa el detalle
+    const { itemsPromo, productosRestantes } = aplicarPromocionesCombinadas(detalle);
+
+    // Arma el detalle final con precio unitario
+    const detalleFinal = [
+        ...itemsPromo.map(item => ({
+            ean: item.ean,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio
+        })),
+        ...productosRestantes.map(item => {
+            const prod = productos.find(p => p.ean === item.ean);
+            let precio = prod.precio_venta ?? 0;
+            // Buscar promoción individual válida para el producto
+            const promo = promociones
+                .filter(p => p.producto_ean === item.ean)
+                .sort((a, b) => b.cantidad - a.cantidad)[0];
+            if (promo && item.cantidad >= promo.cantidad) {
+                precio = promo.precio_promocion / promo.cantidad;
+            }
+            return {
+                ean: item.ean,
+                cantidad: item.cantidad,
+                precio_unitario: precio
+            };
+        })
+    ];
+
     const res = await fetch('/ventas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productos: detalle, fecha: fechaVenta, medio_pago: medioPago })
+        body: JSON.stringify({ productos: detalleFinal, fecha: fechaVenta, medio_pago: medioPago })
     });
     const msg = await res.text();
     alert(msg);
@@ -398,7 +506,6 @@ document.getElementById('registrarVenta').onclick = async function() {
     mostrarTotalCaja();
 };
 
-    cargarProductos();
 
         function setFechaActual() {
             const ahora = new Date();

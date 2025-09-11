@@ -39,11 +39,14 @@
                 <th>Nombre</th>
                 <th>Categoría</th>
                 <th>Gramos</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
                 <th>Quitar</th>
             </tr>
         </thead>
         <tbody id="lista-compras"></tbody>
     </table>
+    <h3>Total estimado: $<span id="totalCompras">0</span></h3>
     <br>
     <button id="btn-pdf">Exportar a PDF</button>
 
@@ -85,13 +88,19 @@
             }
         });
 
-        function agregarProducto(prod) {
+        async function agregarProducto(prod) {
             if (lista.find(p => p.ean === prod.ean)) {
                 alert('Ya está en la lista');
                 return;
             }
+            // Obtener el último precio de compra
+            const res = await fetch(`/compras/precio-ultimo?producto=${prod.ean}`);
+            const data = await res.json();
+            prod.precio_compra = data.precio_compra || 0;
+            prod.cantidad = 1; // Puedes permitir modificar la cantidad si lo deseas
             lista.push(prod);
             renderLista();
+            actualizarTotal();
         }
 
         function renderLista() {
@@ -105,6 +114,11 @@
                         <input type="number" min="0" value="${prod.gramos || ''}" style="width:70px"
                             onchange="cambiarGramos(${idx}, this.value)">
                     </td>
+                    <td>
+                        <input type="number" min="1" value="${prod.cantidad}" style="width:60px"
+                            onchange="cambiarCantidad(${idx}, this.value)">
+                    </td>
+                    <td>$${prod.precio_compra}</td>
                     <td><button onclick="quitarProducto(${idx})">Quitar</button></td>
                 `;
                 tbody.appendChild(tr);
@@ -113,11 +127,23 @@
 
         window.cambiarGramos = function(idx, nuevoValor) {
             lista[idx].gramos = nuevoValor;
+            actualizarTotal();
+        }
+
+        window.cambiarCantidad = function(idx, nuevoValor) {
+            lista[idx].cantidad = parseInt(nuevoValor, 10);
+            actualizarTotal();
         }
 
         window.quitarProducto = function(idx) {
             lista.splice(idx, 1);
             renderLista();
+            actualizarTotal();
+        }
+
+        function actualizarTotal() {
+            const total = lista.reduce((acc, prod) => acc + (prod.precio_compra * (prod.cantidad || 1)), 0);
+            document.getElementById('totalCompras').textContent = total.toFixed(2);
         }
 
         // Si el usuario envía el form, intenta agregar el primero de la búsqueda exacta
@@ -138,17 +164,20 @@
             input.focus();
         });
 
-        document.getElementById('btn-pdf').addEventListener('click', () => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text('Lista de Compras', 10, 10);
-            let y = 20;
-            lista.forEach((prod, i) => {
-                doc.text(`${i + 1}. ${prod.nombre} | ${prod.categoria_nombre || ''} | ${prod.gramos || ''}g`, 10, y);
-                y += 10;
-            });
-            doc.save('lista-compras.pdf');
+    document.getElementById('btn-pdf').addEventListener('click', () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text('Lista de Compras', 10, 10);
+        let y = 20;
+        lista.forEach((prod, i) => {
+            doc.text(`${i + 1}. ${prod.nombre} | ${prod.categoria_nombre || ''} | ${prod.gramos || ''}g | $${prod.precio_compra} x ${prod.cantidad}`, 10, y);
+            y += 10;
         });
+        // Agrega el total estimado al final
+        const total = lista.reduce((acc, prod) => acc + (prod.precio_compra * (prod.cantidad || 1)), 0);
+        doc.text(`Total estimado: $${total.toFixed(2)}`, 10, y + 10);
+        doc.save('lista-compras.pdf');
+    });
     </script>
 </body>
 </html>

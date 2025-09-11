@@ -30,7 +30,7 @@ app.get('/promociones', (req, res) => {
 
 app.post('/promociones-combinadas', async (req, res) => {
     const { nombre, precio_promocion, productos } = req.body;
-    if (!nombre || !precio_promocion || !Array.isArray(productos) || productos.length < 2) {
+    if (!nombre || !precio_promocion || !Array.isArray(productos) ) {
         return res.status(400).send('Datos insuficientes');
     }
     const connection = await pool.getConnection();
@@ -52,6 +52,38 @@ app.post('/promociones-combinadas', async (req, res) => {
     } catch (err) {
         await connection.rollback();
         res.status(500).send('Error al agregar promoción combinada');
+    } finally {
+        connection.release();
+    }
+});
+
+app.get('/promociones-combinadas', async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const [rows] = await connection.query(
+            `SELECT p.id, p.nombre, p.precio_total, pp.producto_ean, pp.cantidad
+             FROM promocion p
+             JOIN promocion_productos pp ON pp.promocion_id = p.id`
+        );
+        // Agrupa por promoción
+        const promos = {};
+        for (const row of rows) {
+            if (!promos[row.id]) {
+                promos[row.id] = {
+                    id: row.id,
+                    nombre: row.nombre,
+                    precio_total: row.precio_total,
+                    productos: []
+                };
+            }
+            promos[row.id].productos.push({
+                producto_ean: row.producto_ean,
+                cantidad: row.cantidad
+            });
+        }
+        res.json(Object.values(promos));
+    } catch (err) {
+        res.status(500).send('Error al obtener promociones combinadas');
     } finally {
         connection.release();
     }

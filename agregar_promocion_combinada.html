@@ -57,10 +57,10 @@
                 }
             });
 
-            if (productos.length < 2) {
-                document.getElementById('mensaje').textContent = 'Agrega al menos dos productos.';
-                return;
-            }
+            // if (productos.length < 2) {
+            //     document.getElementById('mensaje').textContent = 'Agrega al menos dos productos.';
+            //     return;
+            // }
 
             const res = await fetch('/promociones-combinadas', {
                 method: 'POST',
