@@ -443,13 +443,21 @@ async function cargarProductos() {
     renderSelectProductos();
 }
 
+function getFechaLocal() {
+    const ahora = new Date();
+    const year = ahora.getFullYear();
+    const month = String(ahora.getMonth() + 1).padStart(2, '0');
+    const day = String(ahora.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    const hoy = new Date().toISOString().split("T")[0];
+    const hoy = getFechaLocal();
     document.getElementById("filtroFecha").value = hoy;
     cargarVentasRealizadas();
     verificarCajaAbiertaHoy();
-    cargarProductos(); // 👈 agrega esta línea para cargar productos y llenar el select
-    cargarPromociones(); // ya carga ambas
+    cargarProductos();
+    cargarPromociones();
     setFechaActual();
 });
 

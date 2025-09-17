@@ -1,5 +1,15 @@
 const { app, pool } = require('./db');
 
+function getFechaArgentina() {
+    const ahora = new Date();
+    // Ajusta la hora a GMT-3
+    ahora.setHours(ahora.getHours() - (ahora.getTimezoneOffset() / 60) - 3);
+    const year = ahora.getFullYear();
+    const month = String(ahora.getMonth() + 1).padStart(2, '0');
+    const day = String(ahora.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 let efectivoCaja = 0;
 
 app.post('/caja-inicial', async (req, res) => {
@@ -16,7 +26,7 @@ app.post('/caja-inicial', async (req, res) => {
 
 app.post('/abrir-caja', async (req, res) => {
     const { efectivo } = req.body;
-    const fechaHoy = new Date().toISOString().split('T')[0];
+    const fechaHoy = getFechaArgentina();
 
     try {
         // Verifica si ya existe apertura para hoy
@@ -43,7 +53,7 @@ app.post('/retiro-caja', async (req, res) => {
     const { retiro } = req.body;
     const monto = parseFloat(retiro) || 0;
     if (monto <= 0) return res.status(400).send('Monto inválido');
-    const fechaHoy = new Date().toISOString().split('T')[0];
+    const fechaHoy = getFechaArgentina();
     try {
         await pool.query(
             'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
@@ -69,7 +79,7 @@ app.get('/caja-abierta', async (req, res) => {
 
 // Endpoint para ver el total de caja
 app.get('/caja', async (req, res) => {
-    const fechaHoy = new Date().toISOString().split('T')[0];
+    const fechaHoy = getFechaArgentina();
     try {
         // Suma todos los movimientos de caja del día actual
         const [rows] = await pool.query(
