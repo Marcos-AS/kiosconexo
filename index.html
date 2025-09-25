@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -47,6 +48,8 @@
     <a href="ventas.html">Registrar Venta</a>
     <hr><br>
     <a href="ganancias.html">Ver Ganancias por Lote</a>
+    <br>
+    <button id="btn-informe-compras">Exportar informe de compras a PDF</button>
     
     <h1>Inventario</h1>
 
@@ -730,6 +733,76 @@ inputBuscarNombre.addEventListener('keypress', (e) => {
         filtrarProductos();
     }
 });
+
+document.getElementById('btn-informe-compras').onclick = async function() {
+    const res = await fetch('/compras');
+    const compras = await res.json();
+    // Obtener productos con categoría
+    const resProd = await fetch('/productos');
+    const productos = await resProd.json();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Agrupa y toma solo la última compra de cada producto+gramos
+    const ultimasCompras = {};
+    compras.forEach(compra => {
+        const clave = `${compra.producto_nombre}||${compra.gramos}`;
+        if (
+            !ultimasCompras[clave] ||
+            new Date(compra.fecha) > new Date(ultimasCompras[clave].fecha)
+        ) {
+            ultimasCompras[clave] = compra;
+        }
+    });
+
+    // Une con la categoría
+    Object.values(ultimasCompras).forEach(compra => {
+        const prod = productos.find(p => 
+            p.nombre === compra.producto_nombre && 
+            String(p.gramos || '') === String(compra.gramos || '')
+        );
+        compra.categoria_nombre = prod ? prod.categoria_nombre : 'Sin categoría';
+    });
+
+    // Agrupa por categoría
+    const comprasPorCategoria = {};
+    Object.values(ultimasCompras).forEach(compra => {
+        const cat = compra.categoria_nombre || 'Sin categoría';
+        if (!comprasPorCategoria[cat]) comprasPorCategoria[cat] = [];
+        comprasPorCategoria[cat].push(compra);
+    });
+
+    doc.setFontSize(9);
+    doc.text('Informe de Compras (última por producto, ordenado por categoría)', 10, 10);
+
+    let y = 18;
+    let col1x = 10;
+    let col2x = 110;
+    for (const categoria of Object.keys(comprasPorCategoria).sort()) {
+        doc.setFont(undefined, 'bold');
+        doc.text(`${categoria}:`, 10, y);
+        doc.setFont(undefined, 'normal');
+        y += 6;
+        let col = 0;
+        comprasPorCategoria[categoria].forEach(compra => {
+            const texto = `${compra.producto_nombre} (${compra.gramos || ''}g) - $${compra.precio_compra}`;
+            if (col === 0) {
+                doc.text(texto, col1x, y);
+                col = 1;
+            } else {
+                doc.text(texto, col2x, y);
+                col = 0;
+                y += 6;
+            }
+            if (y > 280) { doc.addPage(); y = 18; }
+        });
+        // Si hay una fila sola al final, salta la línea
+        if (col === 1) y += 6;
+        y += 2; // Espacio extra entre categorías
+    }
+
+    doc.save('informe-compras.pdf');
+};
 
 document.getElementById('ingresar').addEventListener('keydown', function (e) {
     const esEnter = e.key === 'Enter';
