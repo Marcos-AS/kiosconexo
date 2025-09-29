@@ -1,0 +1,43 @@
+th, td {
+    padding: 2px 4px;
+    font-size: 13px;
+}
+
+td, th {
+    white-space: normal;
+    word-break: break-word;
+}
+
+td.nombre-col {
+    max-width: 250px;
+    min-width: 180px;
+    width: 30vw;
+    font-weight: bold;
+}
+
+td.ean-col, th.ean-col {
+    max-width: 80px;
+    width: 60px;
+    font-size: 12px;
+}
+
+td.stock-col, th.stock-col,
+td.gramos-col, th.gramos-col,
+td.precio-venta-col, th.precio-venta-col {
+    max-width: 60px;
+    width: 45px;
+    font-size: 12px;
+}
+
+td.marca-col, th.marca-col,
+td.categoria-col, th.categoria-col {
+    max-width: 90px;
+    width: 70px;
+    font-size: 12px;
+}
+
+td.precio-prov-col, th.precio-prov-col {
+    max-width: 90px;
+    width: 70px;
+    font-size: 12px;
+}

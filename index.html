@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles-index.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -80,18 +80,27 @@
     <input type="checkbox" id="filtroStock"> Mostrar solo productos con stock
     </label>
 
+    <label for="filtroPrecioVenta">
+        <select id="filtroPrecioVenta">
+            <option value="">-- Todos --</option>
+            <option value="con">Con precio de venta</option>
+            <option value="sin">Sin precio de venta</option>
+        </select>
+        Filtrar por precio de venta
+    </label>
+
     <table border="1">
         <thead>
             <tr>
-                <th>EAN</th>
-                <th>Nombre</th>
-                <th>Stock</th>
-                <th>Precio de venta</th>
-                <th>Gramos</th>
+                <th class="ean-col">EAN</th>
+                <th class="nombre-col">Nombre</th>
+                <th class="stock-col">Stock</th>
+                <th class="precio-venta-col">Precio de venta</th>
+                <th class="gramos-col">Gramos</th>
                 <th>Descripción</th>
-                <th>Marca</th>
-                <th>Categoría</th>
-                <th>Precio proveedor</th>
+                <th class="marca-col">Marca</th>
+                <th class="categoria-col">Categoría</th>
+                <th class="precio-prov-col">Precio proveedor</th>
             </tr>
         </thead>
         <tbody id="lista-productos">
@@ -219,29 +228,18 @@ async function filtrarProductos() {
     const marcaId = document.getElementById('filtroMarca').value;
     const eanBuscado = document.getElementById('buscarEan').value.trim();
     const nombreBuscado = inputBuscarNombre.value.trim();
+    const filtroPrecioVenta = document.getElementById('filtroPrecioVenta').value;
 
     let url = '/productos';
     const params = new URLSearchParams();
 
-    if (categoriaId) {
-        params.append('categoriaId', categoriaId);
-    }
-    if (proveedorId) {
-        params.append('proveedorId', proveedorId);
-    }
-    if (marcaId) {
-        params.append('marcaId', marcaId);
-    }
-    if (eanBuscado) {
-        params.append('ean', eanBuscado);
-    }
-    if (nombreBuscado) {
-        params.append('nombre', nombreBuscado);
-    }
+    if (categoriaId) params.append('categoriaId', categoriaId);
+    if (proveedorId) params.append('proveedorId', proveedorId);
+    if (marcaId) params.append('marcaId', marcaId);
+    if (eanBuscado) params.append('ean', eanBuscado);
+    if (nombreBuscado) params.append('nombre', nombreBuscado);
 
-    if (params.toString()) {
-        url += `?${params.toString()}`;
-    }
+    if (params.toString()) url += `?${params.toString()}`;
 
     const res = await fetch(url);
     let data = await res.json();
@@ -249,6 +247,13 @@ async function filtrarProductos() {
     // Aplica el filtro de stock aquí, combinando con los demás
     if (filtroStockActivo) {
         data = data.filter(prod => prod.stock > 0);
+    }
+
+    // Aplica el filtro de precio de venta
+    if (filtroPrecioVenta === 'con') {
+        data = data.filter(prod => prod.precio_venta !== null && prod.precio_venta !== undefined && prod.precio_venta !== '');
+    } else if (filtroPrecioVenta === 'sin') {
+        data = data.filter(prod => prod.precio_venta === null || prod.precio_venta === undefined || prod.precio_venta === '');
     }
 
     mostrarProductos(data);
@@ -330,47 +335,44 @@ function mostrarProductos(productos) {
             let precioInicial = '';
 
             tr.innerHTML = `
-                <td>
-                    ${prod.ean}
-                    <button onclick="pegarEAN('${prod.ean}')">📋</button>
-                </td>
-                <td>
-                <input type="text" value="${prod.nombre}" data-ean="${prod.ean}" class="nombre-edit" style="width: 120px">
-                <button onclick="guardarNombre(this)">💾</button>
-                </td>
-
-                <td>
-                <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
-                        <button onclick="actualizarStock(this)">💾</button>
-                </td>
-
-                <td>
-                <input type="number" min="0" step="0.01" value="${prod.precio_venta ?? ''}" data-ean="${prod.ean}" class="input-precio-venta">
-                <button onclick="guardarPrecioVenta(this)">💾</button>
-                </td>
-
-                <td>
-                    <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
-                    <button onclick="guardarGramos(this)">💾</button>
-                </td>
-                <td>${prod.descripcion || ''}</td>
-                <td>
-                    <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 100px">
-                    <button onclick="guardarMarca(this)">💾</button>
-                </td>
-                <td>
-                    <input type="text" value="${prod.categoria_nombre}" data-ean="${prod.ean}" class="categoria-edit" style="width: 100px" list="listaCategorias">
-                    <button onclick="guardarCategoria(this)">💾</button>
-                </td>
-                <td>
-                    <input type="number" step="0.01" min="0" value="${precioInicial}" data-ean="${prod.ean}" placeholder="Precio"/>
-                    <select class="proveedor-select">
-                        ${proveedorOptions}
-                    </select>
-                    <button onclick="guardarPrecio(this)">💾</button>
-                    <button onclick="eliminarPrecio(this)" title="Eliminar precio" style="color:red;">🗑️</button>
-                </td>
-            `;
+    <td class="ean-col">
+        ${prod.ean}
+        <button onclick="pegarEAN('${prod.ean}')">📋</button>
+    </td>
+    <td class="nombre-col">
+        <input type="text" value="${prod.nombre}" data-ean="${prod.ean}" class="nombre-edit" style="width: 98%; min-width: 120px">
+        <button onclick="guardarNombre(this)">💾</button>
+    </td>
+    <td class="stock-col">
+        <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
+        <button onclick="actualizarStock(this)">💾</button>
+    </td>
+    <td class="precio-venta-col">
+        <input type="number" min="0" step="0.01" value="${prod.precio_venta ?? ''}" data-ean="${prod.ean}" class="input-precio-venta">
+        <button onclick="guardarPrecioVenta(this)">💾</button>
+    </td>
+    <td class="gramos-col">
+        <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
+        <button onclick="guardarGramos(this)">💾</button>
+    </td>
+    <td>${prod.descripcion || ''}</td>
+    <td class="marca-col">
+        <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 90%">
+        <button onclick="guardarMarca(this)">💾</button>
+    </td>
+    <td class="categoria-col">
+        <input type="text" value="${prod.categoria_nombre}" data-ean="${prod.ean}" class="categoria-edit" style="width: 90%" list="listaCategorias">
+        <button onclick="guardarCategoria(this)">💾</button>
+    </td>
+    <td class="precio-prov-col">
+        <input type="number" step="0.01" min="0" value="${precioInicial}" data-ean="${prod.ean}" placeholder="Precio"/>
+        <select class="proveedor-select">
+            ${proveedorOptions}
+        </select>
+        <button onclick="guardarPrecio(this)">💾</button>
+        <button onclick="eliminarPrecio(this)" title="Eliminar precio" style="color:red;">🗑️</button>
+    </td>
+`;
 
             // Lógica para actualizar el precio al cambiar proveedor
             const precioInput = tr.querySelector('input[type="number"][placeholder="Precio"]');
@@ -645,29 +647,18 @@ async function filtrarProductos() {
     const marcaId = document.getElementById('filtroMarca').value;
     const eanBuscado = document.getElementById('buscarEan').value.trim();
     const nombreBuscado = inputBuscarNombre.value.trim();
+    const filtroPrecioVenta = document.getElementById('filtroPrecioVenta').value;
 
     let url = '/productos';
     const params = new URLSearchParams();
 
-    if (categoriaId) {
-        params.append('categoriaId', categoriaId);
-    }
-    if (proveedorId) {
-        params.append('proveedorId', proveedorId);
-    }
-    if (marcaId) {
-        params.append('marcaId', marcaId);
-    }
-    if (eanBuscado) {
-        params.append('ean', eanBuscado);
-    }
-    if (nombreBuscado) {
-        params.append('nombre', nombreBuscado);
-    }
+    if (categoriaId) params.append('categoriaId', categoriaId);
+    if (proveedorId) params.append('proveedorId', proveedorId);
+    if (marcaId) params.append('marcaId', marcaId);
+    if (eanBuscado) params.append('ean', eanBuscado);
+    if (nombreBuscado) params.append('nombre', nombreBuscado);
 
-    if (params.toString()) {
-        url += `?${params.toString()}`;
-    }
+    if (params.toString()) url += `?${params.toString()}`;
 
     const res = await fetch(url);
     let data = await res.json();
@@ -675,6 +666,13 @@ async function filtrarProductos() {
     // Aplica el filtro de stock aquí, combinando con los demás
     if (filtroStockActivo) {
         data = data.filter(prod => prod.stock > 0);
+    }
+
+    // Aplica el filtro de precio de venta
+    if (filtroPrecioVenta === 'con') {
+        data = data.filter(prod => prod.precio_venta !== null && prod.precio_venta !== undefined && prod.precio_venta !== '');
+    } else if (filtroPrecioVenta === 'sin') {
+        data = data.filter(prod => prod.precio_venta === null || prod.precio_venta === undefined || prod.precio_venta === '');
     }
 
     mostrarProductos(data);
@@ -733,6 +731,8 @@ inputBuscarNombre.addEventListener('keypress', (e) => {
         filtrarProductos();
     }
 });
+
+document.getElementById('filtroPrecioVenta').addEventListener('change', filtrarProductos);
 
 document.getElementById('btn-informe-compras').onclick = async function() {
     const res = await fetch('/compras');

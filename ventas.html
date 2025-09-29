@@ -45,6 +45,8 @@
         <option value="debito">Débito</option>
     </select>
     <button id="registrarVenta">Registrar Venta</button>
+    <!-- Debajo del botón Registrar Venta -->
+    <div id="mensajeVenta" style="margin-top:10px;"></div>
 
     <h2>Ventas realizadas</h2>
     <label for="filtroFecha">Filtrar por fecha:</label>
@@ -464,18 +466,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Modifica el registro de venta para enviar el medio de pago
 document.getElementById('registrarVenta').onclick = async function() {
+    const mensajeDiv = document.getElementById('mensajeVenta');
+    mensajeDiv.style.display = 'none';
+    mensajeDiv.className = '';
+    mensajeDiv.textContent = '';
+
     if (detalle.length === 0) {
-        alert('Agrega al menos un producto');
+        mensajeDiv.textContent = 'Agrega al menos un producto';
+        mensajeDiv.className = 'error';
+        mensajeDiv.style.display = 'block';
         return;
     }
     const ahora = new Date();
     const fechaVenta = ahora.toISOString().slice(0, 19).replace('T', ' ');
     const medioPago = document.getElementById('medioPago').value;
 
-    // Aplica promociones combinadas y separa el detalle
     const { itemsPromo, productosRestantes } = aplicarPromocionesCombinadas(detalle);
 
-    // Arma el detalle final con precio unitario
     const detalleFinal = [
         ...itemsPromo.map(item => ({
             ean: item.ean,
@@ -485,7 +492,6 @@ document.getElementById('registrarVenta').onclick = async function() {
         ...productosRestantes.map(item => {
             const prod = productos.find(p => p.ean === item.ean);
             let precio = prod.precio_venta ?? 0;
-            // Buscar promoción individual válida para el producto
             const promo = promociones
                 .filter(p => p.producto_ean === item.ean)
                 .sort((a, b) => b.cantidad - a.cantidad)[0];
@@ -500,18 +506,33 @@ document.getElementById('registrarVenta').onclick = async function() {
         })
     ];
 
-    const res = await fetch('/ventas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productos: detalleFinal, fecha: fechaVenta, medio_pago: medioPago })
-    });
-    const msg = await res.text();
-    alert(msg);
+    try {
+        const res = await fetch('/ventas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productos: detalleFinal, fecha: fechaVenta, medio_pago: medioPago })
+        });
+        if (!res.ok) {
+            const msg = await res.text();
+            mensajeDiv.textContent = msg || 'Error al registrar la venta';
+            mensajeDiv.className = 'error';
+            mensajeDiv.style.display = 'block';
+            return;
+        }
+        const msg = await res.text();
+        mensajeDiv.textContent = msg;
+        mensajeDiv.className = 'success';
+        mensajeDiv.style.display = 'block';
 
-    detalle = [];
-    renderDetalle();
-    cargarVentasRealizadas();
-    mostrarTotalCaja();
+        detalle = [];
+        renderDetalle();
+        cargarVentasRealizadas();
+        mostrarTotalCaja();
+    } catch (e) {
+        mensajeDiv.textContent = 'Error de red al registrar la venta';
+        mensajeDiv.className = 'error';
+        mensajeDiv.style.display = 'block';
+    }
 };
 
 
