@@ -89,6 +89,8 @@
         Filtrar por precio de venta
     </label>
 
+    <div id="alerta-bajo-stock"></div>
+
     <table border="1">
         <thead>
             <tr>
@@ -100,7 +102,6 @@
                 <th>Descripción</th>
                 <th class="marca-col">Marca</th>
                 <th class="categoria-col">Categoría</th>
-                <th class="precio-prov-col">Precio proveedor</th>
             </tr>
         </thead>
         <tbody id="lista-productos">
@@ -814,13 +815,55 @@ document.getElementById('ingresar').addEventListener('keydown', function (e) {
         e.preventDefault();
     }
 });
+
+async function mostrarProductosBajoStock() {
+    const div = document.getElementById('alerta-bajo-stock');
+    div.innerHTML = '';
+    try {
+        const res = await fetch('/productos-bajo-stock');
+        const productos = await res.json();
+        if (productos.length === 0) {
+            div.style.display = 'none';
+            return;
+        }
+        div.style.display = 'block';
+
+        // Estado expandido por defecto
+        let expandido = true;
+
+        function render() {
+            div.innerHTML = `
+                <div style="background:#ffd6d6; color:#b71c1c; border:1px solid #b71c1c; padding:10px; margin-bottom:10px; border-radius:6px;">
+                    <b>¡Atención!</b> Los siguientes productos están por acabarse (stock &lt; 3):
+                    <button id="toggle-bajo-stock" style="margin-left:10px; font-size:12px;">
+                        ${expandido ? 'Ocultar' : 'Mostrar'}
+                    </button>
+                    <div id="bajo-stock-lista" style="margin-top:8px;${expandido ? '' : 'display:none;'}">
+                        <ul style="margin:8px 0 0 20px;">
+                            ${productos.map(p => `<li><b>${p.nombre}</b> (${p.gramos || ''}g) - Stock: ${p.stock}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            document.getElementById('toggle-bajo-stock').onclick = function() {
+                expandido = !expandido;
+                render();
+            };
+        }
+
+        render();
+    } catch (e) {
+        div.innerHTML = '';
+        div.style.display = 'none';
+    }
+}
     
     cargarCategorias();
     cargarCategoriasSelect();
     cargarProveedoresFiltro();
     cargarMarcasFiltro();
     cargarProductos();
-
+    mostrarProductosBajoStock();
     </script>
 </body>
 </html>

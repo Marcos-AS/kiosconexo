@@ -254,3 +254,23 @@ app.put('/productos/:ean/gramos', (req, res) => {
         }
     );
 });
+
+app.get('/productos-bajo-stock', (req, res) => {
+    const sql = `
+        SELECT p.ean, p.nombre, p.stock, p.precio_venta, p.gramos, p.descripcion,
+               m.nombre AS marca_nombre, c.nombre AS categoria_nombre
+        FROM producto p
+        JOIN marca m ON p.marca = m.id
+        JOIN categoria c ON p.categoriaId = c.id
+        WHERE p.precio_venta IS NOT NULL
+          AND p.precio_venta != 0
+          AND p.stock < 3
+    `;
+    connection.query(sql, [], (error, results) => {
+        if (error) {
+            console.error('Error al obtener productos bajo stock:', error);
+            return res.status(500).send('Error en la base de datos');
+        }
+        res.json(results);
+    });
+});
