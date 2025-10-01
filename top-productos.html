@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Top productos más vendidos por categoría</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+        th { background: #f5f5f5; }
+        .categoria-titulo { margin-top: 30px; font-size: 1.2em; color: #388e3c; }
+    </style>
+</head>
+<body>
+    <h1>Top productos más vendidos por categoría</h1>
+    <div id="contenedor-tops"></div>
+    <script>
+    async function cargarTopPorCategoria() {
+        const res = await fetch('/top-productos-vendidos-por-categoria');
+        const productos = await res.json();
+        // Agrupa por categoría
+        const categorias = {};
+        productos.forEach(prod => {
+            if (!categorias[prod.categoria]) categorias[prod.categoria] = [];
+            categorias[prod.categoria].push(prod);
+        });
+
+        const contenedor = document.getElementById('contenedor-tops');
+        contenedor.innerHTML = '';
+        Object.keys(categorias).forEach(cat => {
+            const tabla = document.createElement('table');
+            tabla.innerHTML = `
+                <caption class="categoria-titulo">${cat}</caption>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Gramos</th>
+                        <th>Total vendido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${categorias[cat].map(prod => `
+                        <tr>
+                            <td>${prod.nombre}</td>
+                            <td>${prod.gramos || ''}</td>
+                            <td>${prod.total_vendido}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            contenedor.appendChild(tabla);
+        });
+    }
+    cargarTopPorCategoria();
+    </script>
+</body>
+</html>

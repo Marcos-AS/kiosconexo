@@ -372,3 +372,35 @@ app.post('/ventas', async (req, res) => {
     connection.release();
   }
 });
+
+app.get('/top-productos-vendidos', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT dv.producto, p.nombre, p.gramos, SUM(dv.cantidad) AS total_vendido
+            FROM detalle_venta dv
+            JOIN producto p ON dv.producto = p.ean
+            GROUP BY dv.producto, p.nombre, p.gramos
+            ORDER BY total_vendido DESC
+            LIMIT 20
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).send('Error al obtener el top de productos vendidos');
+    }
+});
+
+app.get('/top-productos-vendidos-por-categoria', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT c.nombre AS categoria, p.nombre, p.gramos, SUM(dv.cantidad) AS total_vendido
+            FROM detalle_venta dv
+            JOIN producto p ON dv.producto = p.ean
+            JOIN categoria c ON p.categoriaId = c.id
+            GROUP BY c.id, p.ean, p.nombre, p.gramos
+            ORDER BY c.nombre, total_vendido DESC
+        `);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).send('Error al obtener el top por categoría');
+    }
+});
