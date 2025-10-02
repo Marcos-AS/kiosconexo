@@ -829,20 +829,45 @@ async function mostrarProductosBajoStock() {
         }
         div.style.display = 'block';
 
-        // Estado expandido por defecto
+        // Agrupa por categoría y por stock
+        const categorias = {};
+        productos.forEach(p => {
+            const cat = p.categoria_nombre || 'Sin categoría';
+            if (!categorias[cat]) categorias[cat] = { '2': [], '1': [], '0': [] };
+            if (p.stock === 2) categorias[cat]['2'].push(p);
+            else if (p.stock === 1) categorias[cat]['1'].push(p);
+            else categorias[cat]['0'].push(p);
+        });
+
         let expandido = true;
 
         function render() {
             div.innerHTML = `
                 <div style="background:#ffd6d6; color:#b71c1c; border:1px solid #b71c1c; padding:10px; margin-bottom:10px; border-radius:6px;">
-                    <b>¡Atención!</b> Los siguientes productos están por acabarse (stock &lt; 3):
+                    <b>¡Atención!</b> Productos por acabarse, agrupados por categoría y nivel de stock:
                     <button id="toggle-bajo-stock" style="margin-left:10px; font-size:12px;">
                         ${expandido ? 'Ocultar' : 'Mostrar'}
                     </button>
                     <div id="bajo-stock-lista" style="margin-top:8px;${expandido ? '' : 'display:none;'}">
-                        <ul style="margin:8px 0 0 20px;">
-                            ${productos.map(p => `<li><b>${p.nombre}</b> (${p.gramos || ''}g) - Stock: ${p.stock}</li>`).join('')}
-                        </ul>
+                        ${Object.keys(categorias).sort().map(cat => `
+                            <div style="margin-bottom:10px;">
+                                <span style="font-weight:bold; color:#388e3c;">${cat}</span>
+                                ${['2','1','0'].map(nivel => categorias[cat][nivel].length > 0 ? `
+                                    <div style="margin-left:15px;">
+                                        <span style="color:${nivel==='0'?'#d32f2f':nivel==='1'?'#f57c00':'#fbc02d'}; font-weight:bold;">
+                                            Stock = ${nivel}:
+                                        </span>
+                                        <ul style="margin:4px 0 0 20px;">
+                                            ${categorias[cat][nivel].map(p => `
+                                                <li>
+                                                    <b>${p.nombre}</b> (${p.gramos || ''}g)
+                                                </li>
+                                            `).join('')}
+                                        </ul>
+                                    </div>
+                                ` : '').join('')}
+                            </div>
+                        `).join('')}
                     </div>
                 </div>
             `;
