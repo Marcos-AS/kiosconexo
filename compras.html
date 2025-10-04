@@ -22,6 +22,9 @@
         <label>Precio de compra:</label>
         <input type="number" id="precioCompra" min="0" step="0.01">
         <br>
+        <label>Fecha de vencimiento:</label>
+        <input type="date" id="fechaVencimiento">
+        <br>
         <label>Medio de pago:</label>
         <select id="medioPago">
             <option value="efectivo">Efectivo</option>
@@ -40,6 +43,7 @@
                 <th>Producto</th>
                 <th>Cantidad</th>
                 <th>Precio de compra</th>
+                <th>Fecha de vencimiento</th> <!-- NUEVA COLUMNA -->
             </tr>
         </thead>
         <tbody id="comprasRecientes"></tbody>
@@ -99,23 +103,38 @@ async function cargarCompras() {
     const hoy = new Date().toISOString().split('T')[0];
     let totalHoy = 0;
 
-compras.forEach(c => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td>${c.fecha}</td>
-        <td>${c.proveedor_nombre}</td>
-        <td>${c.producto_nombre}</td>
-        <td>${c.cantidad}</td>
-        <td>
-            <input type="number" value="${c.precio_compra}" data-id="${c.id}">
-            <button onclick="guardarPrecioCompra(this)">✏️</button>
-        </td>
-    `;
-    tbody.appendChild(tr);
+    compras.forEach(c => {
+        const fechaSolo = c.fecha ? c.fecha.split('T')[0] : '';
+        // Formatea la fecha de vencimiento a dd/mm/aaaa
+        let fechaVenc = '';
+        if (c.fecha_vencimiento) {
+            // Extrae solo la parte de la fecha
+            let soloFecha = c.fecha_vencimiento.split('T')[0];
+            if (soloFecha && soloFecha.includes('-')) {
+                const [y, m, d] = soloFecha.split('-');
+                fechaVenc = `${d}/${m}/${y}`;
+            }
+        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${fechaSolo}</td>
+            <td>${c.proveedor_nombre}</td>
+            <td>${c.producto_nombre}</td>
+            <td>${c.cantidad}</td>
+            <td>
+                <input type="number" value="${c.precio_compra}" data-id="${c.id}">
+                <button onclick="guardarPrecioCompra(this)">✏️</button>
+            </td>
+            <td>
+                <span>${fechaVenc || '-'}</span><br>
+                <input type="date" value="${c.fecha_vencimiento ? c.fecha_vencimiento.split('T')[0] : ''}" data-id="${c.id}" id="fechaVencimiento-${c.id}">
+                <button onclick="guardarFechaVencimientoBtn(${c.id})">💾</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
 
         // Total del día
-        const fechaRegistro = new Date(c.fecha).toISOString().split('T')[0];
-        if (fechaRegistro === hoy) {
+        if (fechaSolo === hoy) {
             const precio = parseFloat(c.precio_compra) || 0;
             const cantidad = parseInt(c.cantidad) || 0;
             totalHoy += precio * cantidad;
@@ -155,6 +174,26 @@ async function guardarPrecioCompra(button) {
     }
 }
 
+async function guardarFechaVencimientoBtn(id) {
+    const input = document.getElementById(`fechaVencimiento-${id}`);
+    const nuevaFecha = input.value;
+    try {
+        const res = await fetch(`/compras/${id}/fecha-vencimiento`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fecha_vencimiento: nuevaFecha })
+        });
+        const msg = await res.text();
+        alert(msg);
+        if (res.ok) {
+            await cargarCompras();
+        }
+    } catch (err) {
+        console.error("Error al actualizar fecha de vencimiento:", err);
+        alert("Error al actualizar fecha de vencimiento");
+    }
+}
+
 async function editarPrecio(id, precioActual) {
     const nuevoPrecio = prompt("Nuevo precio:", precioActual);
     if (!nuevoPrecio) return;
@@ -182,6 +221,7 @@ document.getElementById('agregarCompra').onclick = async function() {
     const producto = document.getElementById('productoSelect').value;
     const cantidad = parseInt(document.getElementById('cantidad').value);
     const precioCompra = parseFloat(document.getElementById('precioCompra').value);
+    const fechaVencimiento = document.getElementById('fechaVencimiento').value; // NUEVO
     const medioPago = document.getElementById('medioPago').value;
 
     if (!proveedor || !producto || !cantidad || !precioCompra) {
@@ -201,6 +241,7 @@ document.getElementById('agregarCompra').onclick = async function() {
                 producto,
                 cantidad,
                 precio_compra: precioCompra,
+                fecha_vencimiento: fechaVencimiento || null, // NUEVO
                 medio_pago: medioPago
             })
         });
