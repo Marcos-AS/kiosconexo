@@ -13,12 +13,10 @@ app.get('/productos', (req, res) => {
 
     let sql = `
         SELECT p.ean, p.nombre, p.stock, p.precio_venta, p.gramos, p.descripcion,
-               m.nombre AS marca_nombre, c.nombre AS categoria_nombre,
-               MAX(pr.precio) AS precio
+               m.nombre AS marca_nombre, c.nombre AS categoria_nombre
         FROM producto p
         JOIN marca m ON p.marca = m.id
         JOIN categoria c ON p.categoriaId = c.id
-        LEFT JOIN precios pr ON pr.producto = p.ean
     `;
     const params = [];
     const conditions = [];
@@ -272,5 +270,16 @@ app.get('/productos-bajo-stock', (req, res) => {
             return res.status(500).send('Error en la base de datos');
         }
         res.json(results);
+    });
+});
+
+app.delete('/productos/:ean', (req, res) => {
+    const { ean } = req.params;
+    connection.query('DELETE FROM producto WHERE ean = ?', [ean], (err, result) => {
+        if (err) {
+            console.error('Error al eliminar producto:', err);
+            return res.status(500).send('Error al eliminar producto');
+        }
+        res.send('Producto eliminado correctamente');
     });
 });

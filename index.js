@@ -1,12 +1,10 @@
 const { app, express } = require('./db');
-require('./precios'); // importa los endpoints
 require('./ventas');  // importa otros endpoints}
 require('./caja');
 require('./categorias');
 require('./compras');
 require('./decomisaciones');
 require('./marcas');
-require('./precios');
 require('./productos');
 require('./promociones');
 require('./proveedores');

@@ -319,79 +319,50 @@ function mostrarProductos(productos) {
     const tbody = document.getElementById('lista-productos');
     tbody.innerHTML = '';
 
-    // Cargar proveedores y todos los precios
-    Promise.all([
-        fetch('/proveedores').then(res => res.json()),
-        fetch('/precios-todos').then(res => res.json())
-    ]).then(([proveedores, preciosTodos]) => {
         productos.forEach(prod => {
             const tr = document.createElement('tr');
-
-            // Opciones de proveedor
-            let proveedorOptions = '<option value="">--Seleccione--</option>';
-            proveedores.forEach(prov => {
-                proveedorOptions += `<option value="${prov.id}">${prov.nombre}</option>`;
-            });
 
             // Precio inicial (puede ser vacío)
             let precioInicial = '';
 
             tr.innerHTML = `
-    <td class="ean-col">
-        ${prod.ean}
-        <button onclick="pegarEAN('${prod.ean}')">📋</button>
-    </td>
-    <td class="nombre-col">
-        <input type="text" value="${prod.nombre}" data-ean="${prod.ean}" class="nombre-edit" style="width: 98%; min-width: 120px">
-        <button onclick="guardarNombre(this)">💾</button>
-    </td>
-    <td class="stock-col">
-        <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
-        <button onclick="actualizarStock(this)">💾</button>
-    </td>
-    <td class="precio-venta-col">
-        <input type="number" min="0" step="0.01" value="${prod.precio_venta ?? ''}" data-ean="${prod.ean}" class="input-precio-venta">
-        <button onclick="guardarPrecioVenta(this)">💾</button>
-    </td>
-    <td class="gramos-col">
-        <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
-        <button onclick="guardarGramos(this)">💾</button>
-    </td>
-    <td>${prod.descripcion || ''}</td>
-    <td class="marca-col">
-        <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 90%">
-        <button onclick="guardarMarca(this)">💾</button>
-    </td>
-    <td class="categoria-col">
-        <input type="text" value="${prod.categoria_nombre}" data-ean="${prod.ean}" class="categoria-edit" style="width: 90%" list="listaCategorias">
-        <button onclick="guardarCategoria(this)">💾</button>
-    </td>
-    <td class="precio-prov-col">
-        <input type="number" step="0.01" min="0" value="${precioInicial}" data-ean="${prod.ean}" placeholder="Precio"/>
-        <select class="proveedor-select">
-            ${proveedorOptions}
-        </select>
-        <button onclick="guardarPrecio(this)">💾</button>
-        <button onclick="eliminarPrecio(this)" title="Eliminar precio" style="color:red;">🗑️</button>
-    </td>
-`;
+                <td class="ean-col">
+                    ${prod.ean}
+                    <button onclick="pegarEAN('${prod.ean}')">📋</button>
+                </td>
+                <td class="nombre-col">
+                    <input type="text" value="${prod.nombre}" data-ean="${prod.ean}" class="nombre-edit" style="width: 98%; min-width: 120px">
+                    <button onclick="guardarNombre(this)">💾</button>
+                </td>
+                <td class="stock-col">
+                    <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
+                    <button onclick="actualizarStock(this)">💾</button>
+                </td>
+                <td class="precio-venta-col">
+                    <input type="number" min="0" step="0.01" value="${prod.precio_venta ?? ''}" data-ean="${prod.ean}" class="input-precio-venta">
+                    <button onclick="guardarPrecioVenta(this)">💾</button>
+                </td>
+                <td class="gramos-col">
+                    <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
+                    <button onclick="guardarGramos(this)">💾</button>
+                </td>
+                <td>${prod.descripcion || ''}</td>
+                <td class="marca-col">
+                    <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 90%">
+                    <button onclick="guardarMarca(this)">💾</button>
+                </td>
+                <td class="categoria-col">
+                    <input type="text" value="${prod.categoria_nombre}" data-ean="${prod.ean}" class="categoria-edit" style="width: 90%" list="listaCategorias">
+                    <button onclick="guardarCategoria(this)">💾</button>
+                </td>
+                <td>
+                    <button onclick="eliminarProducto('${prod.ean}')" style="color:red;">🗑️ Eliminar</button>
+                </td>
+            `;
 
-            // Lógica para actualizar el precio al cambiar proveedor
-            const precioInput = tr.querySelector('input[type="number"][placeholder="Precio"]');
-            const proveedorSelect = tr.querySelector('select.proveedor-select');
-
-            proveedorSelect.addEventListener('change', function () {
-                const proveedorId = this.value;
-                const precioObj = preciosTodos.find(
-                    p => p.producto === prod.ean && String(p.proveedor) === proveedorId
-                );
-                precioInput.value = precioObj ? precioObj.precio : '';
-            });
-
+    
             tbody.appendChild(tr);
-        });
-    });
-}
+    });}
 
 async function cargarProveedoresFiltro() {
     try {
@@ -545,45 +516,6 @@ async function guardarGramos(button) {
     }
 }
 
-async function guardarPrecio(button) {
-    const td = button.parentElement;
-    const input = td.querySelector('input[type="number"]');
-    const select = td.querySelector('select.proveedor-select');
-    const precio = parseFloat(input.value.trim());
-    const ean = input.dataset.ean;
-    const proveedorId = select.value;
-
-    if (!proveedorId) {
-        alert('Debe seleccionar un proveedor.');
-        return;
-    }
-
-    try {
-        const res = await fetch('/precios', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                producto: ean,
-                proveedor: proveedorId,
-                precio
-            })
-        });
-
-        const msg = await res.text();
-        alert(msg);
-
-        if (res.ok) {
-            input.value = precio;
-            //await filtrarProductos(); // Opcional: refrescar tabla
-        }
-    } catch (err) {
-        console.error('Error al guardar precio:', err);
-        alert('Error al guardar precio');
-    }
-}
-
 async function guardarPrecioVenta(button) {
     const td = button.parentElement;
     const input = td.querySelector('.input-precio-venta');
@@ -605,37 +537,6 @@ async function guardarPrecioVenta(button) {
         alert(msg);
     } catch (err) {
         alert('Error al guardar el precio de venta');
-    }
-}
-
-async function eliminarPrecio(button) {
-    const td = button.parentElement;
-    const input = td.querySelector('input[type="number"]');
-    const select = td.querySelector('select.proveedor-select');
-    const ean = input.dataset.ean;
-    const proveedorId = select.value;
-
-    if (!proveedorId) {
-        alert('Seleccione un proveedor para eliminar el precio.');
-        return;
-    }
-
-    if (!confirm('¿Seguro que desea eliminar el precio para este proveedor?')) return;
-
-    try {
-        const res = await fetch(`/precios`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ producto: ean, proveedor: proveedorId })
-        });
-        const msg = await res.text();
-        alert(msg);
-        if (res.ok) {
-            input.value = '';
-        }
-    } catch (err) {
-        console.error('Error al eliminar precio:', err);
-        alert('Error al eliminar precio');
     }
 }
 
@@ -806,6 +707,23 @@ document.getElementById('btn-informe-compras').onclick = async function() {
     doc.save('informe-compras.pdf');
 };
 
+async function eliminarProducto(ean) {
+    if (!confirm('¿Seguro que desea eliminar este producto?')) return;
+    try {
+        const res = await fetch(`/productos/${ean}`, {
+            method: 'DELETE'
+        });
+        const msg = await res.text();
+        alert(msg);
+        if (res.ok) {
+            await cargarProductos();
+            filtrarProductos();
+        }
+    } catch (err) {
+        alert('Error al eliminar producto');
+    }
+}
+
 document.getElementById('ingresar').addEventListener('keydown', function (e) {
     const esEnter = e.key === 'Enter';
     const esInput = e.target.tagName === 'INPUT';
@@ -883,7 +801,7 @@ async function mostrarProductosBajoStock() {
         div.style.display = 'none';
     }
 }
-    
+
     cargarCategorias();
     cargarCategoriasSelect();
     cargarProveedoresFiltro();
