@@ -24,18 +24,23 @@ app.put('/compras/:id/precio', async (req, res) => {
 
 // Listar compras recientes
 app.get('/compras', (req, res) => {
-    connection.query(
-        `SELECT c.fecha, p.nombre as proveedor_nombre, pr.nombre as producto_nombre, pr.gramos, c.cantidad, c.precio_compra, c.id, c.fecha_vencimiento
-         FROM compras c
-         JOIN proveedor p ON c.proveedor = p.id
-         JOIN producto pr ON c.producto = pr.ean
-         ORDER BY c.fecha DESC
-         LIMIT 1000`,
-        (err, results) => {
-            if (err) return res.status(500).send('Error al obtener compras');
-            res.json(results);
-        }
-    );
+    let sql = `
+        SELECT c.fecha, p.id as proveedor_id, p.nombre as proveedor_nombre, pr.nombre as producto_nombre, pr.gramos, c.cantidad, c.precio_compra, c.id, c.fecha_vencimiento
+        FROM compras c
+        JOIN proveedor p ON c.proveedor = p.id
+        JOIN producto pr ON c.producto = pr.ean
+        WHERE 1=1
+    `;
+    const params = [];
+    if (req.query.desde && req.query.hasta) {
+        sql += ' AND c.fecha >= ? AND c.fecha < ?';
+        params.push(req.query.desde + ' 00:00:00', req.query.hasta + ' 00:00:00');
+    }
+    sql += ' ORDER BY c.fecha DESC LIMIT 1000';
+    connection.query(sql, params, (err, results) => {
+        if (err) return res.status(500).send('Error al obtener compras');
+        res.json(results);
+    });
 });
 
 

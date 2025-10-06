@@ -15,7 +15,9 @@
     <br>
     <a href="historial_compras.html">Historial de compras por producto</a><br>
     <a href="agregar_promocion_combinada.html">Promociones</a><br>
-    <a href="top-productos.html">Productos que más se vendieron</a>
+    <a href="top-productos.html">Productos que más se vendieron</a><br>
+    <a href="ventas-qr-mes.html">Para facturar</a><br>
+    <a href="compras-mes.html">Compras facturadas</a>
 
     <form action="" id="ingresar">
     <label for="ean">EAN</label>
@@ -361,10 +363,11 @@ function mostrarProductos(productos) {
                     <input type="text" value="${prod.categoria_nombre}" data-ean="${prod.ean}" class="categoria-edit" style="width: 90%" list="listaCategorias">
                     <button onclick="guardarCategoria(this)">💾</button>
                 </td>
-                <td>
-                    <button onclick="eliminarProducto('${prod.ean}')" style="color:red;">🗑️ Eliminar</button>
-                </td>
             `;
+            //boton eliminar producto
+                // <td>
+                //     <button onclick="eliminarProducto('${prod.ean}')" style="color:red;">🗑️ Eliminar</button>
+                // </td>
 
     
             tbody.appendChild(tr);

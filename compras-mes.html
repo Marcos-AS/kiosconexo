@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Compras por mes y proveedor</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; }
+        select[multiple] { min-width: 200px; min-height: 80px; }
+    </style>
+</head>
+<body>
+    <h1>Compras por mes y proveedor</h1>
+    <label>Selecciona mes:
+        <input type="month" id="mesSeleccionado">
+    </label>
+    <label>Proveedores:
+    </label>
+    <div id="proveedorCheckboxes"></div>
+    <button type="button" onclick="cargarComprasMes()">Buscar</button>
+    <table id="tabla-compras-mes">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Proveedor</th>
+                <th>Producto</th>
+                <th>Gramos</th>
+                <th>Cantidad</th>
+                <th>Precio compra</th>
+                <th>Fecha vencimiento</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Aquí se insertan las compras -->
+        </tbody>
+    </table>
+    <p id="totalMes"></p>
+    <script>
+
+async function cargarProveedores() {
+    const proveedoresPorDefecto = [
+        "Nanni",
+        "Krafei",
+        "Arcor Tokin",
+        "Coca Cola Andina (GL1)",
+        "PDB",
+        "Luengo",
+        "Intercom consulting services SRL"
+    ];
+    const res = await fetch('/proveedores');
+    const proveedores = await res.json();
+    const contenedor = document.getElementById('proveedorCheckboxes');
+    contenedor.innerHTML = '';
+    proveedores.forEach(p => {
+        const checked = proveedoresPorDefecto.includes(p.nombre) ? 'checked' : '';
+        const label = document.createElement('label');
+        label.style.marginRight = '12px';
+        label.innerHTML = `
+            <input type="checkbox" value="${p.id}" class="proveedor-check" ${checked}>
+            ${p.nombre}
+        `;
+        contenedor.appendChild(label);
+    });
+}
+
+    async function cargarComprasMes() {
+        const mes = document.getElementById('mesSeleccionado').value;
+        if (!mes) return alert('Selecciona un mes');
+        const [anio, mesNum] = mes.split('-');
+        const desde = `${anio}-${mesNum}-01`;
+        // Calcula el primer día del mes siguiente
+        let mesSiguiente = parseInt(mesNum, 10) + 1;
+        let anioSiguiente = anio;
+        if (mesSiguiente > 12) {
+            mesSiguiente = 1;
+            anioSiguiente = parseInt(anio, 10) + 1;
+        }
+        const hasta = `${anioSiguiente}-${String(mesSiguiente).padStart(2, '0')}-01`;
+
+        // Obtén los proveedores seleccionados
+        const select = document.getElementById('proveedorSelect');
+        const proveedoresSeleccionados = Array.from(document.querySelectorAll('.proveedor-check:checked')).map(cb => cb.value);
+        // Consulta todas las compras del mes
+        const res = await fetch(`/compras?desde=${desde}&hasta=${hasta}`);
+        const compras = await res.json();
+
+        // Filtra por proveedores seleccionados (si hay alguno seleccionado)
+        let comprasFiltradas = compras;
+        if (proveedoresSeleccionados.length > 0) {
+            comprasFiltradas = compras.filter(c => proveedoresSeleccionados.includes(String(c.proveedor_id)));
+        }
+
+        const tbody = document.querySelector('#tabla-compras-mes tbody');
+        tbody.innerHTML = '';
+
+        if (comprasFiltradas.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No hay compras en este mes</td></tr>`;
+            document.getElementById('totalMes').textContent = '';
+            return;
+        }
+
+        let totalMes = 0;
+        comprasFiltradas.forEach(c => {
+            const fechaSolo = c.fecha ? c.fecha.split('T')[0] : '';
+            let fechaVenc = '';
+            if (c.fecha_vencimiento) {
+                let soloFecha = c.fecha_vencimiento.split('T')[0];
+                if (soloFecha && soloFecha.includes('-')) {
+                    const [y, m, d] = soloFecha.split('-');
+                    fechaVenc = `${d}/${m}/${y}`;
+                }
+            }
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${fechaSolo}</td>
+                <td>${c.proveedor_nombre}</td>
+                <td>${c.producto_nombre}</td>
+                <td>${c.gramos || ''}</td>
+                <td>${c.cantidad}</td>
+                <td>${c.precio_compra}</td>
+                <td>${fechaVenc || '-'}</td>
+            `;
+            tbody.appendChild(tr);
+
+            totalMes += parseFloat(c.precio_compra) * parseInt(c.cantidad);
+        });
+        document.getElementById('totalMes').textContent = `Total del mes: $${totalMes.toFixed(2)}`;
+    }
+
+    cargarProveedores();
+    </script>
+</body>
+</html>

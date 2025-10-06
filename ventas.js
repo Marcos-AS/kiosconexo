@@ -172,11 +172,25 @@ app.get('/ventas', (req, res) => {
         JOIN detalle_venta dv ON dv.venta_id = v.id
         LEFT JOIN producto p ON dv.producto = p.ean
         LEFT JOIN compras c ON dv.compra_id = c.id
+        WHERE 1=1
     `;
     const params = [];
     if (req.query.fecha) {
-        sql += ' WHERE DATE(v.fecha) = ?';
+        sql += ' AND DATE(v.fecha) = ?';
         params.push(req.query.fecha);
+    }
+    if (req.query.desde && req.query.hasta) {
+        // desde: '2025-09-01', hasta: '2025-09-30'
+        const desde = req.query.desde + ' 00:00:00';
+        let hastaDate = new Date(req.query.hasta);
+        hastaDate.setDate(hastaDate.getDate() + 1);
+        const hasta = hastaDate.toISOString().slice(0, 10) + ' 00:00:00';
+        sql += ' AND v.fecha >= ? AND v.fecha < ?';
+        params.push(desde, hasta);
+    }
+    if (req.query.medio_pago) {
+        sql += ' AND v.medio_pago = ?';
+        params.push(req.query.medio_pago);
     }
     sql += `
         ORDER BY v.fecha DESC, v.id DESC
@@ -193,7 +207,7 @@ app.get('/ventas', (req, res) => {
                     venta_id: row.venta_id,
                     fecha: row.fecha,
                     total: row.total,
-                    medio_pago: row.medio_pago, // 👈 Agregado
+                    medio_pago: row.medio_pago,
                     detalle: []
                 };
                 ventas.push(actual);
@@ -234,7 +248,7 @@ app.post('/ventas', async (req, res) => {
     function agruparPromos(promosCombinadas) {
       const promos = {};
       for (const promo of promosCombinadas) {
-        if (!proms[promo.id]) promos[promo.id] = { precio_total: promo.precio_total, productos: [] };
+        if (!promos[promo.id]) promos[promo.id] = { precio_total: promo.precio_total, productos: [] };
         promos[promo.id].productos.push({ ean: promo.producto_ean, cantidad: promo.cantidad });
       }
       return promos;

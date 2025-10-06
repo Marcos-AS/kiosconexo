@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Ventas QR por mes</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>Detalle de ventas QR por mes</h1>
+    <label>Selecciona mes:
+        <input type="month" id="mesSeleccionado">
+    </label>
+    <button type="button" onclick="cargarVentasQR()">Buscar</button>
+    <table id="tabla-ventas-qr">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Precio unitario</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Aquí se insertan las ventas -->
+        </tbody>
+    </table>
+    <p id="totalMes"></p>
+    <script>
+    async function cargarVentasQR() {
+        const mes = document.getElementById('mesSeleccionado').value;
+        if (!mes) return alert('Selecciona un mes');
+        const [anio, mesNum] = mes.split('-');
+        const desde = `${anio}-${mesNum}-01`;
+        const hasta = `${anio}-${mesNum}-31`;
+
+        const res = await fetch(`/ventas?desde=${desde}&hasta=${hasta}&medio_pago=qr`);
+        const ventas = await res.json();
+        const tbody = document.querySelector('#tabla-ventas-qr tbody');
+        tbody.innerHTML = '';
+
+        if (ventas.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No hay ventas QR en este mes</td></tr>`;
+            return;
+        }
+        let totalMes = 0;
+
+        ventas.forEach(venta => {
+            // Fila separadora para cada venta
+            const trVenta = document.createElement('tr');
+            trVenta.style.background = '#e3f2fd';
+            trVenta.innerHTML = `
+                <td><b>${venta.fecha.split('T')[0]}</b></td>
+                <td><b>$${venta.total}</b></td>
+                <td colspan="3"><b>Venta #${venta.venta_id}</b></td>
+            `;
+            tbody.appendChild(trVenta);
+
+            totalMes += parseFloat(venta.total);
+
+            // Productos de la venta
+            venta.detalle.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td></td>
+                    <td></td>
+                    <td>${item.producto_nombre}</td>
+                    <td>${item.cantidad}</td>
+                    <td>${item.precio_unitario}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+        document.getElementById('totalMes').textContent = `Total del mes: $${totalMes.toFixed(2)}`;
+    }
+    </script>
+</body>
+</html>
