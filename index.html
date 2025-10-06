@@ -90,6 +90,12 @@
         Filtrar por precio de venta
     </label>
 
+    <label for="filtroMarcaBajoStock">
+    Filtrar bajo stock por marca:
+    <select id="filtroMarcaBajoStock">
+        <option value="">-- Todas las marcas --</option>
+    </select>
+    </label>
     <div id="alerta-bajo-stock"></div>
 
     <table border="1">
@@ -735,12 +741,38 @@ document.getElementById('ingresar').addEventListener('keydown', function (e) {
     }
 });
 
+async function cargarMarcasBajoStock() {
+    try {
+        const res = await fetch('/marcas');
+        let marcas = await res.json();
+        // Ordenar alfabéticamente por nombre
+        marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        const select = document.getElementById('filtroMarcaBajoStock');
+        select.innerHTML = '<option value="">-- Todas las marcas --</option>';
+        marcas.forEach(marca => {
+            const option = document.createElement('option');
+            option.value = marca.nombre;
+            option.textContent = marca.nombre;
+            select.appendChild(option);
+        });
+    } catch (e) {
+        console.error('Error al cargar marcas para bajo stock:', e);
+    }
+}
+
 async function mostrarProductosBajoStock() {
     const div = document.getElementById('alerta-bajo-stock');
     div.innerHTML = '';
     try {
         const res = await fetch('/productos-bajo-stock');
-        const productos = await res.json();
+        let productos = await res.json();
+
+        // Filtra por marca seleccionada
+        const marcaSeleccionada = document.getElementById('filtroMarcaBajoStock').value;
+        if (marcaSeleccionada) {
+            productos = productos.filter(p => p.marca_nombre === marcaSeleccionada);
+        }
+
         if (productos.length === 0) {
             div.style.display = 'none';
             return;
@@ -802,6 +834,9 @@ async function mostrarProductosBajoStock() {
     }
 }
 
+document.getElementById('filtroMarcaBajoStock').addEventListener('change', mostrarProductosBajoStock);
+
+    cargarMarcasBajoStock();
     cargarCategorias();
     cargarCategoriasSelect();
     cargarProveedoresFiltro();
