@@ -283,3 +283,44 @@ app.delete('/productos/:ean', (req, res) => {
         res.send('Producto eliminado correctamente');
     });
 });
+
+app.get('/productos-precios', async (req, res) => {
+    try {
+        const [productos] = await pool.query(`
+            SELECT p.ean, p.nombre, p.precio_venta, p.stock, c.nombre AS categoria
+            FROM producto p
+            JOIN categoria c ON p.categoriaId = c.id
+        `);
+
+        const preciosCompra = {};
+        for (const prod of productos) {
+            const [rows] = await pool.query(
+                'SELECT precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
+                [prod.ean]
+            );
+            preciosCompra[prod.ean] = rows.length > 0 ? rows[0].precio_compra : null;
+        }
+
+        const resultado = productos.map(prod => {
+            const precioCompra = preciosCompra[prod.ean];
+            let porcentaje = null;
+            if (precioCompra && prod.precio_venta) {
+                porcentaje = ((prod.precio_venta - precioCompra) / precioCompra * 100).toFixed(2);
+            }
+            return {
+                nombre: prod.nombre,
+                precio_venta: prod.precio_venta,
+                precio_compra: precioCompra,
+                diferencia: porcentaje,
+                categoria: prod.categoria,
+                stock: prod.stock
+            };
+        });
+
+        res.json(resultado);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error al obtener precios');
+    }
+});
+

@@ -1,0 +1,99 @@
+<!-- productos-precios.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Precios de Productos</title>
+<style>
+    table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #eee; }
+    .bajo-porcentaje { background: #ffdddd; } /* rojo */
+    .sin-stock { background: #ffe5b4; } /* naranja suave */
+</style>
+
+</head>
+<body>
+    <h2 style="text-align:center;">Precios de Productos</h2>
+    <table id="tabla-productos">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Precio Venta</th>
+                <th>Último Precio Compra</th>
+                <th>Diferencia (%)</th>
+                <th>Precio con 40%</th>
+                <th>Categoría</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script>
+        fetch('/productos-precios')
+    .then(res => res.json())
+    .then(data => {
+        const tbody = document.querySelector('#tabla-productos tbody');
+        data.forEach(prod => {
+            const porcentaje = parseFloat(prod.diferencia);
+            const precioVenta = parseFloat(prod.precio_venta);
+            const precioCompra = parseFloat(prod.precio_compra);
+            let precio40 = '-';
+            let diferenciaPrecio = null;
+            if (!isNaN(precioCompra) && precioCompra > 0) {
+                precio40 = (precioCompra * 1.4).toFixed(2);
+                diferenciaPrecio = parseFloat(precio40) - precioVenta;
+            }
+
+            const tr = document.createElement('tr');
+            let marcarRojo = false;
+
+            // Regla de marcado según categoría
+            if (prod.categoria === 'Cigarrillos') {
+                marcarRojo = false;
+            } else if (
+                (prod.categoria === 'Snack salado' || prod.categoria === 'Papitas') &&
+                !isNaN(porcentaje) &&
+                porcentaje < 30 &&
+                diferenciaPrecio !== null &&
+                diferenciaPrecio > 50
+            ) {
+                marcarRojo = true;
+            } else if (
+                prod.categoria !== 'Cigarrillos' &&
+                prod.categoria !== 'Snack salado' &&
+                prod.categoria !== 'Palitos salados' &&
+                prod.categoria !== 'Chisitos' &&
+                prod.categoria !== 'Nachos' &&
+                prod.categoria !== 'Papitas' &&
+                !isNaN(porcentaje) &&
+                porcentaje < 40 &&
+                diferenciaPrecio !== null &&
+                diferenciaPrecio > 50
+            ) {
+                marcarRojo = true;
+            }
+
+            // 🔸 Nuevo: si se marcaría rojo pero stock es 0 → naranja
+            if (marcarRojo) {
+                if (prod.stock === 0) {
+                    tr.classList.add('sin-stock');
+                } else {
+                    tr.classList.add('bajo-porcentaje');
+                }
+            }
+
+            tr.innerHTML = `
+                <td>${prod.nombre}</td>
+                <td>${prod.precio_venta ?? '-'}</td>
+                <td>${prod.precio_compra ?? '-'}</td>
+                <td>${prod.diferencia !== null ? prod.diferencia + '%' : '-'}</td>
+                <td>${precio40}</td>
+                <td>${prod.categoria ?? '-'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+
+    </script>
+</body>
+</html>
