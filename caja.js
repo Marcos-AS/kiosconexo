@@ -66,6 +66,23 @@ app.post('/retiro-caja', async (req, res) => {
     }
 });
 
+app.post('/agregar-caja', async (req, res) => {
+    const { agregar } = req.body;
+    const monto = parseFloat(agregar) || 0;
+    if (monto <= 0) return res.status(400).send('Monto inválido');
+    const fechaHoy = getFechaArgentina();
+    try {
+        await pool.query(
+            'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
+            [monto, fechaHoy]
+        );
+        res.send('Monto agregado correctamente');
+    } catch (err) {
+        console.error('Error al registrar retiro:', err);
+        res.status(500).send('Error al registrar retiro');
+    }
+});
+
 app.get('/caja-abierta', async (req, res) => {
     const fecha = req.query.fecha;
     if (!fecha) return res.json({ abierta: false });
