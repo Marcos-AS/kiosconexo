@@ -348,9 +348,29 @@ async function cargarVentasRealizadas() {
 
             totalDiferencia += diferencia;
 
+            // ✅ NUEVO: detectar si es bebida
+            const categoriasBebidas = [
+                "Agua",
+                "Agua saborizada",
+                "Gaseosa",
+                "Chocolatada",
+                "Cerveza",
+                "Energizante",
+                "Jugo"
+            ];
+            const esBebida =
+                d.categoria &&
+                categoriasBebidas.some(c => d.categoria.toLowerCase().includes(c.toLowerCase()));
+
             const trDetalle = document.createElement('tr');
             trDetalle.classList.add(`detalle-venta-${ventaIndex}`);
             trDetalle.style.display = estadoExpandidoGlobal ? '' : 'none';
+
+            // ✅ Aplica color celeste si es bebida
+            if (esBebida) {
+                trDetalle.style.backgroundColor = '#d0f0ff';
+            }
+
             trDetalle.innerHTML = `
                 <td></td>
                 <td></td>
@@ -363,6 +383,7 @@ async function cargarVentasRealizadas() {
             `;
             tbody.appendChild(trDetalle);
         });
+
 
         trVenta.addEventListener('click', () => {
             const filasDetalle = document.querySelectorAll(`.detalle-venta-${ventaIndex}`);

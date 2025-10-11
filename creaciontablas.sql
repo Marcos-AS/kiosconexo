@@ -4,6 +4,8 @@ create table producto (
     gramos float,
     descripcion varchar(1000),
     marca int);
+
+    alter table producto add column categoriaId int not null;
     
 create table marca (
 	id int primary key auto_increment,
@@ -32,7 +34,7 @@ create table precios (
 );
     
 alter table producto add foreign key (marca) references marca (id);
-alter table producto add column categoriaId int not null;
+
 alter table producto add foreign key (categoriaId) references categoria(id);
 alter table producto add column stock int default 0;
 alter table producto add column precio_venta int;

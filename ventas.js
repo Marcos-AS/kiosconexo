@@ -165,22 +165,33 @@ app.post('/ventas', async (req, res) => {
 
 app.get('/ventas', (req, res) => {
     let sql = `
-        SELECT v.id AS venta_id, v.fecha, v.total, v.medio_pago,
-               dv.producto, p.nombre AS producto_nombre, dv.cantidad, dv.precio_unitario,
-               dv.compra_id, c.precio_compra
+        SELECT 
+            v.id AS venta_id, 
+            v.fecha, 
+            v.total, 
+            v.medio_pago,
+            dv.producto, 
+            p.nombre AS producto_nombre, 
+            cat.nombre AS categoria,  -- 👈 obtenemos el nombre de la categoría
+            dv.cantidad, 
+            dv.precio_unitario,
+            dv.compra_id, 
+            c.precio_compra
         FROM ventas v
         JOIN detalle_venta dv ON dv.venta_id = v.id
         LEFT JOIN producto p ON dv.producto = p.ean
+        LEFT JOIN categoria cat ON p.categoriaId = cat.id  -- 👈 nuevo join
         LEFT JOIN compras c ON dv.compra_id = c.id
         WHERE 1=1
     `;
     const params = [];
+
     if (req.query.fecha) {
         sql += ' AND DATE(v.fecha) = ?';
         params.push(req.query.fecha);
     }
+
     if (req.query.desde && req.query.hasta) {
-        // desde: '2025-09-01', hasta: '2025-09-30'
         const desde = req.query.desde + ' 00:00:00';
         let hastaDate = new Date(req.query.hasta);
         hastaDate.setDate(hastaDate.getDate() + 1);
@@ -188,19 +199,23 @@ app.get('/ventas', (req, res) => {
         sql += ' AND v.fecha >= ? AND v.fecha < ?';
         params.push(desde, hasta);
     }
+
     if (req.query.medio_pago) {
         sql += ' AND v.medio_pago = ?';
         params.push(req.query.medio_pago);
     }
+
     sql += `
         ORDER BY v.fecha DESC, v.id DESC
         LIMIT 500
     `;
+
     connection.query(sql, params, (err, results) => {
         if (err) return res.status(500).send('Error al obtener ventas');
-        // Agrupar por venta
+
         const ventas = [];
         let actual = null;
+
         results.forEach(row => {
             if (!actual || actual.venta_id !== row.venta_id) {
                 actual = {
@@ -212,17 +227,21 @@ app.get('/ventas', (req, res) => {
                 };
                 ventas.push(actual);
             }
+
             actual.detalle.push({
                 producto: row.producto,
                 producto_nombre: row.producto_nombre,
+                categoria: row.categoria, // 👈 ahora llega el nombre real (ej: 'Gaseosa')
                 cantidad: row.cantidad,
                 precio_unitario: row.precio_unitario,
                 precio_compra: row.precio_compra
             });
         });
+
         res.json(ventas);
     });
 });
+
 
 app.post('/ventas', async (req, res) => {
   const { productos, medio_pago } = req.body;
