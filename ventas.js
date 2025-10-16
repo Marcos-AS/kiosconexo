@@ -280,18 +280,20 @@ app.get('/ventas-por-dia', async (req, res) => {
     const [rows] = await pool.query(`
       SELECT 
         DATE(fecha) AS fecha,
-        SUM(total) AS total_dia
+        SUM(total) AS total_dia,
+        COUNT(id) AS cantidad_ventas
       FROM ventas
       GROUP BY DATE(fecha)
       ORDER BY fecha DESC
     `);
-
     res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).send('Error al obtener totales de ventas por día');
   }
 });
+
+
 
 app.get('/ventas-por-semana', async (req, res) => {
   try {
@@ -301,7 +303,8 @@ app.get('/ventas-por-semana', async (req, res) => {
         semana,
         MIN(inicio) AS inicio_semana,
         MAX(fin) AS fin_semana,
-        SUM(total_semana) AS total_semana
+        SUM(total_semana) AS total_semana,
+        COUNT(*) AS cantidad_ventas
       FROM (
         SELECT 
           YEAR(fecha) AS anio,
@@ -322,9 +325,6 @@ app.get('/ventas-por-semana', async (req, res) => {
   }
 });
 
-
-
-
 app.get('/ventas-por-mes', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -332,7 +332,8 @@ app.get('/ventas-por-mes', async (req, res) => {
         anio,
         mes_numero,
         CONCAT(MONTHNAME(STR_TO_DATE(mes_numero, '%m')), ' ', anio) AS mes_nombre,
-        SUM(total) AS total_mes
+        SUM(total) AS total_mes,
+        COUNT(*) AS cantidad_ventas
       FROM (
         SELECT 
           YEAR(fecha) AS anio,

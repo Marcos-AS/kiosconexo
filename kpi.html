@@ -67,7 +67,7 @@
     <div class="table-container">
       <table>
         <thead>
-          <tr><th>Fecha</th><th>Total</th></tr>
+          <tr><th>Fecha</th><th>Total</th><th>Ticket Promedio</th></tr>
         </thead>
         <tbody id="tabla-dia"></tbody>
       </table>
@@ -80,7 +80,7 @@
     <div class="table-container">
       <table>
         <thead>
-          <tr><th>Semana</th><th>Total</th></tr>
+          <tr><th>Semana</th><th>Total</th><th>Ticket Promedio</th></tr>
         </thead>
         <tbody id="tabla-semana"></tbody>
       </table>
@@ -93,7 +93,7 @@
     <div class="table-container">
       <table>
         <thead>
-          <tr><th>Mes</th><th>Total</th></tr>
+          <tr><th>Mes</th><th>Total</th><th>Ticket Promedio</th></tr>
         </thead>
         <tbody id="tabla-mes"></tbody>
       </table>
@@ -137,27 +137,36 @@
         const totals = [];
 
         datos.forEach(fila => {
-            let periodo, total;
+            let periodo, total, cantidad, ticketPromedio;
 
             if (tipo === 'dia') {
-                periodo = fila.fecha.split('T')[0]; // sin hora
+                periodo = fila.fecha.split('T')[0];
                 total = fila.total_dia;
+                cantidad = fila.cantidad_ventas;
             } else if (tipo === 'semana') {
-                // ya vienen fechas sin hora desde el backend
                 periodo = `${fila.inicio_semana.split('T')[0]} a ${fila.fin_semana.split('T')[0]}`;
                 total = fila.total_semana;
+                cantidad = fila.cantidad_ventas;
             } else if (tipo === 'mes') {
                 periodo = fila.mes_nombre || `${fila.anio}-${fila.mes_numero}`;
                 total = fila.total_mes;
+                cantidad = fila.cantidad_ventas;
             }
 
+            ticketPromedio = cantidad > 0 ? (total / cantidad) : 0;
+
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${periodo}</td><td>$${Number(total || 0).toFixed(2)}</td>`;
+            tr.innerHTML = `
+            <td>${periodo}</td>
+            <td>$${Number(total || 0).toFixed(2)}</td>
+            <td>$${ticketPromedio.toFixed(2)}</td>
+            `;
             tbody.appendChild(tr);
 
             labels.push(periodo);
             totals.push(total);
-            });
+        });
+
 
             // Invertimos arrays para que los datos más recientes queden a la derecha
             labels.reverse();
