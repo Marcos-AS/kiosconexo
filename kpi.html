@@ -211,12 +211,12 @@
         }
     }
 
-    async function cargarCategorias() {
+async function cargarCategorias() {
   const tbody = document.getElementById('tabla-categoria');
   tbody.innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
 
   try {
-    const res = await fetch(`${API_BASE}/ventas-por-categoria`);
+    const res = await fetch(`${API_BASE}/ganancia-por-categoria`);
     if (!res.ok) throw new Error('Error al obtener categorías');
     const datos = await res.json();
 
@@ -226,35 +226,53 @@
       return;
     }
 
+    // 🔹 Ordenar de mayor a menor ganancia
+    datos.sort((a, b) => (b.ganancia_total || 0) - (a.ganancia_total || 0));
+
     const labels = [];
     const totals = [];
 
     datos.forEach(fila => {
-      const ticketPromedio = fila.cantidad_ventas > 0 ? (fila.total_categoria / fila.cantidad_ventas) : 0;
+      const ticketPromedio = fila.cantidad_ventas > 0 ? (fila.ganancia_total / fila.cantidad_ventas) : 0;
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${fila.categoria}</td>
-        <td>$${Number(fila.total_categoria || 0).toFixed(2)}</td>
+        <td>$${Number(fila.ganancia_total || 0).toFixed(2)}</td>
         <td>$${ticketPromedio.toFixed(2)}</td>
       `;
       tbody.appendChild(tr);
 
       labels.push(fila.categoria);
-      totals.push(fila.total_categoria);
+      totals.push(fila.ganancia_total);
     });
 
     // Crear gráfico
     const ctx = document.getElementById('grafico-categoria').getContext('2d');
     new Chart(ctx, {
       type: 'bar',
-      data: { labels, datasets: [{ label: 'Total Ventas', data: totals, backgroundColor: 'rgba(40, 167, 69, 0.6)', borderColor: 'rgba(40, 167, 69, 1)', borderWidth: 1 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      data: { 
+        labels, 
+        datasets: [{
+          label: 'Ganancia por Categoría', 
+          data: totals, 
+          backgroundColor: 'rgba(40, 167, 69, 0.6)', 
+          borderColor: 'rgba(40, 167, 69, 1)', 
+          borderWidth: 1 
+        }] 
+      },
+      options: { 
+        responsive: true, 
+        plugins: { legend: { display: false } }, 
+        scales: { y: { beginAtZero: true } } 
+      }
     });
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="3">Error: ${err.message}</td></tr>`;
     console.error(err);
   }
 }
+
+
 
 // Cargar categorías
 cargarCategorias();

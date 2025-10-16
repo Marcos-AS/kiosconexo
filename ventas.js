@@ -374,3 +374,34 @@ app.get('/ventas-por-categoria', async (req, res) => {
   }
 });
 
+app.get('/ganancia-por-categoria', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.id AS categoria_id,
+        c.nombre AS categoria,
+        SUM((dv.precio_unitario - co.precio_compra) * dv.cantidad) AS ganancia_total,
+        COUNT(DISTINCT dv.venta_id) AS cantidad_ventas
+      FROM detalle_venta dv
+      JOIN producto p ON dv.producto = p.ean
+      JOIN categoria c ON p.categoriaId = c.id
+      LEFT JOIN (
+        SELECT producto, precio_compra
+        FROM compras
+        WHERE (producto, fecha) IN (
+          SELECT producto, MAX(fecha)
+          FROM compras
+          GROUP BY producto
+        )
+      ) co ON co.producto = dv.producto
+      GROUP BY c.id, c.nombre
+      ORDER BY ganancia_total DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ Error en /ganancia-por-categoria:', err.message);
+    res.status(500).send('Error al calcular ganancias por categoría');
+  }
+});
+
