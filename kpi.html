@@ -114,6 +114,40 @@
   </div>
 </section>
 
+<section id="cantidad-por-dia">
+  <h2>Cantidad de Ventas por Día</h2>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr><th>Fecha</th><th>Cantidad de Ventas</th></tr>
+      </thead>
+      <tbody id="tabla-cantidad-dia"></tbody>
+    </table>
+    <canvas id="grafico-cantidad-dia" height="150"></canvas>
+  </div>
+</section>
+
+<section id="comparativa-mes">
+  <h2>Comparativa Día a Día por Mes</h2>
+  <div class="table-container">
+    <canvas id="grafico-comparativa-mes" height="200"></canvas>
+  </div>
+</section>
+
+<section id="comparativa-cantidad-mes">
+  <h2>Comparativa Cantidad de Ventas por Mes</h2>
+  <div class="table-container">
+    <canvas id="grafico-cantidad-mes" height="200"></canvas>
+  </div>
+</section>
+
+<section id="comparativa-dia-semana">
+  <h2>Comparativa Ventas por Día de la Semana</h2>
+  <div class="table-container">
+    <canvas id="grafico-dia-semana" height="200"></canvas>
+  </div>
+</section>
+
   <script>
     const API_BASE = 'http://localhost:3000';
 
@@ -271,6 +305,242 @@ async function cargarCategorias() {
     console.error(err);
   }
 }
+
+async function cargarCantidadPorDia() {
+  const tbody = document.getElementById('tabla-cantidad-dia');
+  tbody.innerHTML = '<tr><td colspan="2">Cargando...</td></tr>';
+
+  try {
+    const res = await fetch(`${API_BASE}/ventas-por-dia`);
+    if (!res.ok) throw new Error('Error al obtener ventas por día');
+    const datos = await res.json();
+
+    tbody.innerHTML = '';
+    if (datos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2">Sin datos</td></tr>';
+      return;
+    }
+
+    const labels = [];
+    const cantidades = [];
+
+    datos.forEach(fila => {
+      const fecha = fila.fecha.split('T')[0]; // sin hora
+      const cantidad = fila.cantidad_ventas;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${fecha}</td><td>${cantidad}</td>`;
+      tbody.appendChild(tr);
+
+      labels.push(fecha);
+      cantidades.push(cantidad);
+    });
+
+    // Invertir arrays para que los días más recientes queden a la derecha
+    labels.reverse();
+    cantidades.reverse();
+
+    // Crear gráfico
+    const ctx = document.getElementById('grafico-cantidad-dia').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Cantidad de Ventas',
+          data: cantidades,
+          backgroundColor: 'rgba(255, 193, 7, 0.6)',
+          borderColor: 'rgba(255, 193, 7, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="2">Error: ${err.message}</td></tr>`;
+    console.error(err);
+  }
+}
+
+async function cargarComparativaMes() {
+  try {
+    const res = await fetch(`${API_BASE}/ventas-por-dia`);
+    if (!res.ok) throw new Error('Error al obtener ventas por día');
+    const datos = await res.json();
+
+    if (datos.length === 0) return;
+
+    // Agrupar por mes
+    const meses = {}; // { "2025-09": [ventas por día], "2025-10": [...] }
+    datos.forEach(fila => {
+      const fecha = fila.fecha.split('T')[0]; // yyyy-mm-dd
+      const [anio, mes, dia] = fecha.split('-');
+      const key = `${anio}-${mes}`;
+      if (!meses[key]) meses[key] = {};
+      meses[key][parseInt(dia)] = fila.total_dia || 0;
+    });
+
+    // Obtener la lista de días del mes más largo
+    const dias = Array.from({ length: 31 }, (_, i) => i + 1);
+
+    const datasets = Object.keys(meses).sort().map((mes, idx) => {
+      const color = `hsl(${idx * 60}, 70%, 50%)`; // colores distintos
+      return {
+        label: mes,
+        data: dias.map(d => meses[mes][d] || 0),
+        borderColor: color,
+        backgroundColor: color,
+        fill: false,
+        tension: 0.2
+      };
+    });
+
+    const ctx = document.getElementById('grafico-comparativa-mes').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dias,
+        datasets
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { title: { display: true, text: 'Día del Mes' } },
+          y: { title: { display: true, text: 'Ventas Totales' }, beginAtZero: true }
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Error en comparativa mes:', err);
+  }
+}
+
+async function cargarComparativaCantidadMes() {
+  try {
+    const res = await fetch(`${API_BASE}/ventas-por-dia`);
+    if (!res.ok) throw new Error('Error al obtener ventas por día');
+    const datos = await res.json();
+
+    if (datos.length === 0) return;
+
+    // Agrupar por mes
+    const meses = {}; // { "2025-09": {1: cantidad, 2: cantidad, ...}, ... }
+    datos.forEach(fila => {
+      const fecha = fila.fecha.split('T')[0];
+      const [anio, mes, dia] = fecha.split('-');
+      const key = `${anio}-${mes}`;
+      if (!meses[key]) meses[key] = {};
+      meses[key][parseInt(dia)] = fila.cantidad_ventas || 0;
+    });
+
+    const dias = Array.from({ length: 31 }, (_, i) => i + 1);
+
+    const datasets = Object.keys(meses).sort().map((mes, idx) => {
+      const color = `hsl(${idx * 60}, 70%, 50%)`;
+      return {
+        label: mes,
+        data: dias.map(d => meses[mes][d] || 0),
+        borderColor: color,
+        backgroundColor: color,
+        fill: false,
+        tension: 0.2
+      };
+    });
+
+    const ctx = document.getElementById('grafico-cantidad-mes').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dias,
+        datasets
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+          x: { title: { display: true, text: 'Día del Mes' } },
+          y: { title: { display: true, text: 'Cantidad de Ventas' }, beginAtZero: true }
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Error en comparativa cantidad mes:', err);
+  }
+}
+
+async function cargarComparativaDiaSemana() {
+  try {
+    const res = await fetch(`${API_BASE}/ventas-por-dia`);
+    if (!res.ok) throw new Error('Error al obtener ventas por día');
+    const datos = await res.json();
+
+    if (datos.length === 0) return;
+
+    // Agrupar por mes y día de la semana
+    const meses = {}; // { "2025-09": {1: cantidad, 2: cantidad, ...7: cantidad} }
+    datos.forEach(fila => {
+      const fecha = new Date(fila.fecha.split('T')[0]);
+      const diaSemana = fecha.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+      const mesKey = `${fecha.getFullYear()}-${('0'+(fecha.getMonth()+1)).slice(-2)}`;
+      if (!meses[mesKey]) meses[mesKey] = {};
+      // sumamos ventas en caso de que haya varias por día
+      meses[mesKey][diaSemana] = (meses[mesKey][diaSemana] || 0) + (fila.cantidad_ventas || 0);
+    });
+
+    const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    const datasets = Object.keys(meses).sort().map((mes, idx) => {
+      const color = `hsl(${idx * 60}, 70%, 50%)`;
+      return {
+        label: mes,
+        data: diasSemana.map((_, i) => meses[mes][i] || 0),
+        borderColor: color,
+        backgroundColor: color,
+        fill: false,
+        tension: 0.2
+      };
+    });
+
+    const ctx = document.getElementById('grafico-dia-semana').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: diasSemana,
+        datasets
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true } },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Cantidad de Ventas' } },
+          x: { title: { display: true, text: 'Día de la Semana' } }
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Error en comparativa día de la semana:', err);
+  }
+}
+
+// Cargar comparativa día de la semana
+cargarComparativaDiaSemana();
+
+// Cargar comparativa cantidad mes
+cargarComparativaCantidadMes();
+
+// Cargar la comparativa mes
+cargarComparativaMes();
+
+// Cargar la nueva sección
+cargarCantidadPorDia();
 
 
 
