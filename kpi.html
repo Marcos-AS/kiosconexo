@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>KPI de Ventas</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f9f9f9;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    section {
+      margin-bottom: 50px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    h2 {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      margin: 0;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+    }
+
+    .table-container {
+      display: none; /* inicialmente colapsada */
+      padding: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    canvas {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 KPI - Totales de Ventas</h1>
+
+  <section id="por-dia">
+    <h2>Totales por Día</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Total</th></tr>
+        </thead>
+        <tbody id="tabla-dia"></tbody>
+      </table>
+      <canvas id="grafico-dia" height="150"></canvas>
+    </div>
+  </section>
+
+  <section id="por-semana">
+    <h2>Totales por Semana</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr><th>Semana</th><th>Total</th></tr>
+        </thead>
+        <tbody id="tabla-semana"></tbody>
+      </table>
+      <canvas id="grafico-semana" height="150"></canvas>
+    </div>
+  </section>
+
+  <section id="por-mes">
+    <h2>Totales por Mes</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr><th>Mes</th><th>Total</th></tr>
+        </thead>
+        <tbody id="tabla-mes"></tbody>
+      </table>
+      <canvas id="grafico-mes" height="150"></canvas>
+    </div>
+  </section>
+
+  <script>
+    const API_BASE = 'http://localhost:3000';
+
+    // Función para colapsar/expandir secciones
+    document.querySelectorAll('section h2').forEach(h2 => {
+      h2.addEventListener('click', () => {
+        const container = h2.nextElementSibling;
+        container.style.display = container.style.display === 'block' ? 'none' : 'block';
+      });
+    });
+
+    async function cargarTotales(tipo) {
+      const endpoints = {
+        dia: `${API_BASE}/ventas-por-dia`,
+        semana: `${API_BASE}/ventas-por-semana`,
+        mes: `${API_BASE}/ventas-por-mes`
+      };
+
+      const tbody = document.getElementById(`tabla-${tipo}`);
+      tbody.innerHTML = '<tr><td colspan="2">Cargando...</td></tr>';
+
+      try {
+        const res = await fetch(endpoints[tipo]);
+        if (!res.ok) throw new Error('Error al obtener datos');
+        const datos = await res.json();
+
+        tbody.innerHTML = '';
+        if (datos.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="2">Sin datos</td></tr>';
+          return;
+        }
+
+        const labels = [];
+        const totals = [];
+
+        datos.forEach(fila => {
+            let periodo, total;
+
+            if (tipo === 'dia') {
+                periodo = fila.fecha.split('T')[0]; // sin hora
+                total = fila.total_dia;
+            } else if (tipo === 'semana') {
+                // ya vienen fechas sin hora desde el backend
+                periodo = `${fila.inicio_semana.split('T')[0]} a ${fila.fin_semana.split('T')[0]}`;
+                total = fila.total_semana;
+            } else if (tipo === 'mes') {
+                periodo = fila.mes_nombre || `${fila.anio}-${fila.mes_numero}`;
+                total = fila.total_mes;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${periodo}</td><td>$${Number(total || 0).toFixed(2)}</td>`;
+            tbody.appendChild(tr);
+
+            labels.push(periodo);
+            totals.push(total);
+            });
+
+            // Invertimos arrays para que los datos más recientes queden a la derecha
+            labels.reverse();
+            totals.reverse();
+
+            // Crear gráfico
+            const ctx = document.getElementById(`grafico-${tipo}`).getContext('2d');
+            new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                label: 'Total Ventas',
+                data: totals,
+                backgroundColor: 'rgba(0, 123, 255, 0.6)',
+                borderColor: 'rgba(0, 123, 255, 1)',
+                borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+      });
+        } catch (error) {
+            tbody.innerHTML = `<tr><td colspan="2">Error al cargar datos</td></tr>`;
+            console.error(error);
+        }
+    }
+
+
+    // Cargar todos los KPIs
+    cargarTotales('dia');
+    cargarTotales('semana');
+    cargarTotales('mes');
+  </script>
+</body>
+</html>
