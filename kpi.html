@@ -101,6 +101,19 @@
     </div>
   </section>
 
+  <section id="por-categoria">
+  <h2>Totales por Categoría</h2>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr><th>Categoría</th><th>Total</th><th>Ticket Promedio</th></tr>
+      </thead>
+      <tbody id="tabla-categoria"></tbody>
+    </table>
+    <canvas id="grafico-categoria" height="150"></canvas>
+  </div>
+</section>
+
   <script>
     const API_BASE = 'http://localhost:3000';
 
@@ -197,6 +210,54 @@
             console.error(error);
         }
     }
+
+    async function cargarCategorias() {
+  const tbody = document.getElementById('tabla-categoria');
+  tbody.innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+
+  try {
+    const res = await fetch(`${API_BASE}/ventas-por-categoria`);
+    if (!res.ok) throw new Error('Error al obtener categorías');
+    const datos = await res.json();
+
+    tbody.innerHTML = '';
+    if (datos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3">Sin datos</td></tr>';
+      return;
+    }
+
+    const labels = [];
+    const totals = [];
+
+    datos.forEach(fila => {
+      const ticketPromedio = fila.cantidad_ventas > 0 ? (fila.total_categoria / fila.cantidad_ventas) : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${fila.categoria}</td>
+        <td>$${Number(fila.total_categoria || 0).toFixed(2)}</td>
+        <td>$${ticketPromedio.toFixed(2)}</td>
+      `;
+      tbody.appendChild(tr);
+
+      labels.push(fila.categoria);
+      totals.push(fila.total_categoria);
+    });
+
+    // Crear gráfico
+    const ctx = document.getElementById('grafico-categoria').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Total Ventas', data: totals, backgroundColor: 'rgba(40, 167, 69, 0.6)', borderColor: 'rgba(40, 167, 69, 1)', borderWidth: 1 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="3">Error: ${err.message}</td></tr>`;
+    console.error(err);
+  }
+}
+
+// Cargar categorías
+cargarCategorias();
 
 
     // Cargar todos los KPIs

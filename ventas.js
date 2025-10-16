@@ -352,3 +352,25 @@ app.get('/ventas-por-mes', async (req, res) => {
   }
 });
 
+app.get('/ventas-por-categoria', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        c.id,
+        c.nombre AS categoria,
+        SUM(v.total) AS total_categoria,
+        COUNT(v.id) AS cantidad_ventas
+      FROM ventas v
+      JOIN detalle_venta dv ON dv.venta_id = v.id
+      JOIN producto p ON dv.producto = p.ean
+      JOIN categoria c ON p.categoriaId = c.id
+      GROUP BY c.id, c.nombre
+      ORDER BY total_categoria DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ Error en /ventas-por-categoria:', err.message);
+    res.status(500).send('Error al obtener ventas por categoría');
+  }
+});
+
