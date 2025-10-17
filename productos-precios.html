@@ -94,7 +94,11 @@
             const contenedor = document.getElementById('contenedor-categorias');
             contenedor.innerHTML = '';
 
-            Object.keys(categorias).forEach(categoria => {
+            const categoriasOrdenadas = Object.keys(categorias).sort((a, b) => 
+                a.localeCompare(b, 'es', { sensitivity: 'base' })
+            );
+
+            categoriasOrdenadas.forEach(categoria => {
                 const productos = categorias[categoria];
 
                 productos.sort((a, b) => {
