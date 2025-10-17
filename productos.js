@@ -286,34 +286,55 @@ app.delete('/productos/:ean', (req, res) => {
 
 app.get('/productos-precios', async (req, res) => {
     try {
+        // Obtenemos los productos y categorías
         const [productos] = await pool.query(`
             SELECT p.ean, p.nombre, p.precio_venta, p.stock, c.nombre AS categoria
             FROM producto p
             JOIN categoria c ON p.categoriaId = c.id
         `);
 
-        const preciosCompra = {};
-        for (const prod of productos) {
-            const [rows] = await pool.query(
-                'SELECT precio_compra FROM compras WHERE producto = ? ORDER BY fecha DESC LIMIT 1',
-                [prod.ean]
-            );
-            preciosCompra[prod.ean] = rows.length > 0 ? rows[0].precio_compra : null;
-        }
+        // Obtenemos el último precio_compra y la fecha de cada producto
+        const [ultimasCompras] = await pool.query(`
+            SELECT 
+                producto AS ean,
+                precio_compra,
+                fecha AS fecha_ultima_compra
+            FROM compras
+            WHERE (producto, fecha) IN (
+                SELECT producto, MAX(fecha)
+                FROM compras
+                GROUP BY producto
+            )
+        `);
 
+        // Creamos un mapa para acceder rápido
+        const mapaCompras = {};
+        ultimasCompras.forEach(row => {
+            mapaCompras[row.ean] = {
+                precio_compra: row.precio_compra,
+                fecha_ultima_compra: row.fecha_ultima_compra
+            };
+        });
+
+        // Combinamos datos
         const resultado = productos.map(prod => {
-            const precioCompra = preciosCompra[prod.ean];
+            const infoCompra = mapaCompras[prod.ean] || {};
+            const precioCompra = infoCompra.precio_compra || null;
+            const fechaCompra = infoCompra.fecha_ultima_compra || null;
+
             let porcentaje = null;
             if (precioCompra && prod.precio_venta) {
                 porcentaje = ((prod.precio_venta - precioCompra) / precioCompra * 100).toFixed(2);
             }
+
             return {
                 nombre: prod.nombre,
                 precio_venta: prod.precio_venta,
                 precio_compra: precioCompra,
                 diferencia: porcentaje,
                 categoria: prod.categoria,
-                stock: prod.stock
+                stock: prod.stock,
+                fecha_ultima_compra: fechaCompra
             };
         });
 
@@ -323,4 +344,5 @@ app.get('/productos-precios', async (req, res) => {
         res.status(500).send('Error al obtener precios');
     }
 });
+
 
