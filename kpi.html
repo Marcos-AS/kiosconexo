@@ -187,10 +187,16 @@
             let periodo, total, cantidad, ticketPromedio;
 
             if (tipo === 'dia') {
-                periodo = fila.fecha.split('T')[0];
+                const fechaObj = new Date(fila.fecha);
+                const opciones = { weekday: 'long' }; // devuelve nombre del día
+                const diaSemana = fechaObj.toLocaleDateString('es-AR', opciones);
+                const fechaFormateada = fechaObj.toISOString().split('T')[0];
+
+                periodo = `${fechaFormateada} (${diaSemana})`;
                 total = fila.total_dia;
                 cantidad = fila.cantidad_ventas;
-            } else if (tipo === 'semana') {
+            }
+            else if (tipo === 'semana') {
                 periodo = `${fila.inicio_semana.split('T')[0]} a ${fila.fin_semana.split('T')[0]}`;
                 total = fila.total_semana;
                 cantidad = fila.cantidad_ventas;
