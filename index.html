@@ -874,34 +874,61 @@ document.getElementById('btn-exportar-bajo-stock').addEventListener('click', asy
         pdf.text('Listado de Productos con Bajo Stock', pageWidth / 2, margin + 5, { align: 'center' });
         pdf.setFontSize(10);
 
+        const coloresStock = {
+            2: [251, 192, 45],   // amarillo
+            1: [245, 124, 0],    // naranja
+            0: [211, 47, 47]     // rojo
+        };
+
         for (const categoria of Object.keys(categorias).sort()) {
+            const productosCat = categorias[categoria];
+
+            // 📌 Agrupar dentro de la categoría por nivel de stock
+            const niveles = { 2: [], 1: [], 0: [] };
+            productosCat.forEach(p => {
+                if (p.stock >= 2) niveles[2].push(p);
+                else if (p.stock === 1) niveles[1].push(p);
+                else niveles[0].push(p);
+            });
+
             pdf.setFont(undefined, 'bold');
             pdf.text(categoria, x, y);
             pdf.setFont(undefined, 'normal');
             y += lineHeight;
 
-            for (const p of categorias[categoria]) {
-                const texto = `${p.nombre} (${p.marca_nombre || 'Sin marca'}) - Stock: ${p.stock}`;
-                const splitted = pdf.splitTextToSize(texto, colWidth - 2);
-                splitted.forEach(line => {
-                    pdf.text(line, x, y);
-                    y += lineHeight;
-                });
+            for (const nivel of [2, 1, 0]) {
+                if (niveles[nivel].length === 0) continue;
 
-                // Salto de columna o página
-                if (y > 280) {
-                    if (x === margin) {
-                        // pasamos a la segunda columna
-                        x = margin + colWidth + margin;
-                        y = margin + 15;
-                    } else {
-                        // nueva página
-                        pdf.addPage();
-                        x = margin;
-                        y = margin + 15;
+                // Color visual y título
+                pdf.setTextColor(...coloresStock[nivel]);
+                pdf.text(`Stock = ${nivel}`, x, y);
+                y += lineHeight;
+
+                pdf.setTextColor(0, 0, 0); // volver a negro para productos
+                for (const p of niveles[nivel]) {
+                    const texto = `${p.nombre} (${p.marca_nombre || 'Sin marca'})`;
+                    const splitted = pdf.splitTextToSize(texto, colWidth - 2);
+                    splitted.forEach(line => {
+                        pdf.text(line, x, y);
+                        y += lineHeight;
+                    });
+
+                    // Salto de columna o página
+                    if (y > 280) {
+                        if (x === margin) {
+                            x = margin + colWidth + margin;
+                            y = margin + 15;
+                        } else {
+                            pdf.addPage();
+                            x = margin;
+                            y = margin + 15;
+                        }
                     }
                 }
+
+                y += lineHeight; // espacio entre niveles
             }
+
             y += lineHeight; // espacio entre categorías
         }
 
@@ -911,6 +938,8 @@ document.getElementById('btn-exportar-bajo-stock').addEventListener('click', asy
         alert('Error al generar el PDF.');
     }
 });
+
+
 
 
     cargarMarcasBajoStock();
