@@ -263,7 +263,9 @@ app.get('/productos-bajo-stock', (req, res) => {
         WHERE p.precio_venta IS NOT NULL
           AND p.precio_venta != 0
           AND p.stock < 3
+          AND c.nombre NOT IN ('Accesorio', 'Cartera', 'Joyería', 'Mochilas', 'Tecnología')
     `;
+    
     connection.query(sql, [], (error, results) => {
         if (error) {
             console.error('Error al obtener productos bajo stock:', error);
@@ -272,6 +274,7 @@ app.get('/productos-bajo-stock', (req, res) => {
         res.json(results);
     });
 });
+
 
 app.delete('/productos/:ean', (req, res) => {
     const { ean } = req.params;

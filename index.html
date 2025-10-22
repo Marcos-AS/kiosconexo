@@ -101,6 +101,8 @@
     </select>
     </label>
     <div id="alerta-bajo-stock"></div>
+    <button id="btn-exportar-bajo-stock">Exportar bajo stock a PDF</button>
+
 
     <table border="1">
         <thead>
@@ -840,6 +842,76 @@ async function mostrarProductosBajoStock() {
 }
 
 document.getElementById('filtroMarcaBajoStock').addEventListener('change', mostrarProductosBajoStock);
+
+document.getElementById('btn-exportar-bajo-stock').addEventListener('click', async () => {
+    try {
+        const res = await fetch('/productos-bajo-stock');
+        const productos = await res.json();
+        if (!productos.length) {
+            alert('No hay productos con bajo stock.');
+            return;
+        }
+
+        // Agrupar por categoría
+        const categorias = {};
+        productos.forEach(p => {
+            const cat = p.categoria_nombre || 'Sin categoría';
+            if (!categorias[cat]) categorias[cat] = [];
+            categorias[cat].push(p);
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const margin = 10;
+        const colWidth = (pageWidth - margin * 3) / 2; // dos columnas
+        const lineHeight = 6;
+        let x = margin;
+        let y = margin + 10;
+
+        pdf.setFontSize(14);
+        pdf.text('Listado de Productos con Bajo Stock', pageWidth / 2, margin + 5, { align: 'center' });
+        pdf.setFontSize(10);
+
+        for (const categoria of Object.keys(categorias).sort()) {
+            pdf.setFont(undefined, 'bold');
+            pdf.text(categoria, x, y);
+            pdf.setFont(undefined, 'normal');
+            y += lineHeight;
+
+            for (const p of categorias[categoria]) {
+                const texto = `${p.nombre} (${p.marca_nombre || 'Sin marca'}) - Stock: ${p.stock}`;
+                const splitted = pdf.splitTextToSize(texto, colWidth - 2);
+                splitted.forEach(line => {
+                    pdf.text(line, x, y);
+                    y += lineHeight;
+                });
+
+                // Salto de columna o página
+                if (y > 280) {
+                    if (x === margin) {
+                        // pasamos a la segunda columna
+                        x = margin + colWidth + margin;
+                        y = margin + 15;
+                    } else {
+                        // nueva página
+                        pdf.addPage();
+                        x = margin;
+                        y = margin + 15;
+                    }
+                }
+            }
+            y += lineHeight; // espacio entre categorías
+        }
+
+        pdf.save('productos_bajo_stock.pdf');
+    } catch (e) {
+        console.error('Error al exportar bajo stock:', e);
+        alert('Error al generar el PDF.');
+    }
+});
+
 
     cargarMarcasBajoStock();
     cargarCategorias();
