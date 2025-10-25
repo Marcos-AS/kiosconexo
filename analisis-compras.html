@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Análisis de Compras</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .panel { margin-bottom: 2em; }
+        .panel h2 { margin-bottom: 0.5em; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+    </style>
+</head>
+<body>
+    <h1>Análisis de Compras</h1>
+    <div class="panel">
+        <h2>Resumen</h2>
+        <p><strong>Total gastado:</strong> $<span id="total-gastado">0</span></p>
+        <p><strong>Productos distintos comprados:</strong> <span id="productos-distintos">0</span></p>
+    </div>
+    <div class="panel">
+        <h2>Compras por período</h2>
+        <canvas id="comprasChart" height="80"></canvas>
+    </div>
+    <div class="panel">
+        <h2>Productos más comprados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad total</th>
+                    <th>Stock estimado</th>
+                </tr>
+            </thead>
+            <tbody id="productos-mas-comprados"></tbody>
+        </table>
+    </div>
+    <div class="panel">
+        <h2>Análisis por Categoría</h2>
+        <canvas id="gastoCategoriaChart" height="60"></canvas>
+        <canvas id="cantidadCategoriaChart" height="60"></canvas>
+    </div>
+    <div class="panel">
+        <h2>Evolución diaria del gasto acumulado por mes</h2>
+        <canvas id="evolucionDiariaChart" height="80"></canvas>
+    </div>
+    <div class="panel">
+        <h2>Frecuencia de compra sugerida por producto</h2>
+        <label for="filtro-categoria"><strong>Filtrar por categoría:</strong></label>
+        <select id="filtro-categoria">
+            <option value="">Todas</option>
+        </select>
+        <button id="ordenar-dias">Ordenar por días para próxima compra</button>
+        <button id="ordenar-stock">Ordenar por stock</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Stock</th>
+                    <th>Última compra</th>
+                    <th>Promedio días entre compras</th>
+                    <th>Cantidad promedio</th>
+                    <th>Sugerencia</th>
+                    <th>Días para próxima compra</th>
+                    <th>Ocultar</th> <!-- Nueva columna -->
+                </tr>
+            </thead>
+            <tbody id="frecuencia-compra"></tbody>
+        </table>
+    </div>
+    <script>
+        async function fetchCompras() {
+            const res = await fetch('/compras');
+            return await res.json();
+        }
+
+        function agruparPorPeriodo(compras, periodo) {
+            const agrupado = {};
+            compras.forEach(c => {
+                let key;
+                const fecha = new Date(c.fecha);
+                if (periodo === 'dia') {
+                    key = fecha.toISOString().slice(0, 10);
+                } else if (periodo === 'semana') {
+                    const year = fecha.getFullYear();
+                    const week = Math.ceil((((fecha - new Date(year,0,1)) / 86400000) + new Date(year,0,1).getDay()+1)/7);
+                    key = `${year}-S${week}`;
+                } else if (periodo === 'mes') {
+                    key = fecha.toISOString().slice(0, 7);
+                }
+                agrupado[key] = (agrupado[key] || 0) + (c.precio_compra * c.cantidad);
+            });
+            return agrupado;
+        }
+
+        function productosMasComprados(compras) {
+            const productos = {};
+            compras.forEach(c => {
+                const key = c.producto_nombre;
+                if (!productos[key]) productos[key] = { cantidad: 0, stock: 0 };
+                productos[key].cantidad += c.cantidad;
+                productos[key].stock += c.cantidad; // Si no hay ventas, stock = suma de compras
+            });
+            return productos;
+        }
+
+        function agruparPorCategoria(compras) {
+            const gasto = {};
+            const cantidad = {};
+            compras.forEach(c => {
+                const cat = c.categoria_nombre || 'Sin categoría';
+                gasto[cat] = (gasto[cat] || 0) + c.precio_compra * c.cantidad;
+                cantidad[cat] = (cantidad[cat] || 0) + c.cantidad;
+            });
+            return { gasto, cantidad };
+        }
+
+        function getGastoAcumuladoPorDia(compras) {
+            // Agrupa compras por año-mes
+            const porMes = {};
+            compras.forEach(c => {
+                const fecha = new Date(c.fecha);
+                const year = fecha.getFullYear();
+                const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+                const dia = fecha.getDate().toString().padStart(2, '0');
+                const keyMes = `${year}-${mes}`;
+                if (!porMes[keyMes]) porMes[keyMes] = {};
+                porMes[keyMes][dia] = (porMes[keyMes][dia] || 0) + c.precio_compra * c.cantidad;
+            });
+
+            // Para cada mes, calcula el acumulado día a día
+            const acumulados = {};
+            Object.entries(porMes).forEach(([mes, dias]) => {
+                const diasMes = Object.keys(dias).map(Number).sort((a, b) => a - b);
+                let suma = 0;
+                acumulados[mes] = [];
+                for (let d = 1; d <= 31; d++) {
+                    if (dias[d]) suma += dias[d];
+                    acumulados[mes].push(suma);
+                }
+            });
+            return acumulados;
+        }
+
+        async function fetchCategorias() {
+            const res = await fetch('/categorias');
+            return await res.json();
+        }
+
+        async function fetchProductos() {
+            const res = await fetch('/productos');
+            return await res.json();
+        }
+
+        function calcularFrecuenciaCompras(compras) {
+            // Agrupa compras por producto
+            const porProducto = {};
+            compras.forEach(c => {
+                const key = c.producto_nombre;
+                if (!porProducto[key]) porProducto[key] = [];
+                porProducto[key].push({
+                    fecha: new Date(c.fecha),
+                    cantidad: c.cantidad,
+                    categoria: c.categoria_nombre || 'Sin categoría'
+                });
+            });
+
+            const resultado = [];
+            Object.entries(porProducto).forEach(([nombre, comprasProd]) => {
+                // Ordena por fecha ascendente
+                comprasProd.sort((a, b) => a.fecha - b.fecha);
+                // Calcula diferencias de días entre compras
+                const difs = [];
+                for (let i = 1; i < comprasProd.length; i++) {
+                    const diff = (comprasProd[i].fecha - comprasProd[i-1].fecha) / (1000*60*60*24);
+                    difs.push(diff);
+                }
+                const promedioDias = difs.length ? (difs.reduce((a,b) => a+b,0) / difs.length) : 0;
+                const promedioCantidad = comprasProd.reduce((a,b) => a+b.cantidad,0) / comprasProd.length;
+                const ultimaCompra = comprasProd[comprasProd.length-1].fecha;
+                const categoria = comprasProd[0].categoria;
+                // ¿Debería comprar mañana?
+                let marcar = false;
+                let diasParaProxima = '—';
+                if (promedioDias) {
+                    const hoy = new Date();
+                    const diasDesdeUltima = (hoy - ultimaCompra) / (1000*60*60*24);
+                    if (diasDesdeUltima >= Math.floor(promedioDias)) {
+                        marcar = true;
+                    }
+                    diasParaProxima = Math.ceil(promedioDias - diasDesdeUltima);
+                }
+                resultado.push({
+                    nombre,
+                    categoria,
+                    ultimaCompra: ultimaCompra.toISOString().slice(0,10),
+                    promedioDias: promedioDias ? promedioDias.toFixed(1) : '—',
+                    promedioCantidad: promedioCantidad.toFixed(1),
+                    sugerencia: promedioDias ? `Comprar cada ${Math.round(promedioDias)} días` : 'No hay datos suficientes',
+                    marcar,
+                    diasParaProxima
+                });
+            });
+            return resultado;
+        }
+
+        function getProductosOcultos() {
+            return JSON.parse(localStorage.getItem('productosOcultos') || '[]');
+        }
+
+        function setProductosOcultos(arr) {
+            localStorage.setItem('productosOcultos', JSON.stringify(arr));
+        }
+
+        function renderFrecuenciaTabla(frec, categoriaFiltro, stockMap, orden = null) {
+            let productosOcultos = getProductosOcultos();
+            let datos = frec.filter(f => 
+                (!categoriaFiltro || f.categoria === categoriaFiltro) &&
+                !productosOcultos.includes(f.nombre)
+            );
+
+            if (orden === 'dias') {
+                datos = datos.slice().sort((a, b) => {
+                    if (isNaN(a.diasParaProxima)) return 1;
+                    if (isNaN(b.diasParaProxima)) return -1;
+                    return a.diasParaProxima - b.diasParaProxima;
+                });
+            } else if (orden === 'stock') {
+                datos = datos.slice().sort((a, b) => {
+                    const stockA = stockMap[a.nombre] !== undefined ? stockMap[a.nombre] : Infinity;
+                    const stockB = stockMap[b.nombre] !== undefined ? stockMap[b.nombre] : Infinity;
+                    return stockA - stockB;
+                });
+            }
+
+            const tbody = document.getElementById('frecuencia-compra');
+            tbody.innerHTML = '';
+            datos.forEach(f => {
+                const tr = document.createElement('tr');
+                if (f.marcar) tr.style.background = '#fff3cd';
+                const stock = stockMap[f.nombre] !== undefined ? stockMap[f.nombre] : '—';
+                tr.innerHTML = `<td>${f.nombre}</td><td>${f.categoria}</td><td>${stock}</td><td>${f.ultimaCompra}</td><td>${f.promedioDias}</td><td>${f.promedioCantidad}</td><td>${f.sugerencia}</td><td>${f.diasParaProxima}</td>
+                    <td><button data-nombre="${f.nombre}" class="ocultar-btn">Ocultar</button></td>`;
+                tbody.appendChild(tr);
+            });
+
+            // Evento para ocultar productos
+            tbody.querySelectorAll('.ocultar-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    let ocultos = getProductosOcultos();
+                    ocultos.push(this.dataset.nombre);
+                    setProductosOcultos(ocultos);
+                    renderFrecuenciaTabla(frec, categoriaFiltro, stockMap, orden);
+                });
+            });
+        }
+
+        async function main() {
+            try {
+                const compras = await fetchCompras();
+                const categorias = await fetchCategorias();
+                const productosRes = await fetchProductos();
+
+                // Ordenar categorías alfabéticamente
+                categorias.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                // Crear mapa de stock por nombre de producto
+                const stockMap = {};
+                productosRes.forEach(p => { stockMap[p.nombre] = p.stock; });
+
+                // Total gastado
+                const totalGastado = compras.reduce((sum, c) => sum + c.precio_compra * c.cantidad, 0);
+                document.getElementById('total-gastado').textContent = totalGastado.toFixed(2);
+
+                // Productos distintos
+                const productosDistintos = new Set(compras.map(c => c.producto_nombre)).size;
+                document.getElementById('productos-distintos').textContent = productosDistintos;
+
+                // Compras por mes
+                const comprasPorMes = agruparPorPeriodo(compras, 'mes');
+                const comprasPorSemana = agruparPorPeriodo(compras, 'semana');
+                const comprasPorDia = agruparPorPeriodo(compras, 'dia');
+
+                // Gráfico
+                const labels = Object.keys(comprasPorMes).sort();
+                const data = labels.map(l => comprasPorMes[l]);
+                new Chart(document.getElementById('comprasChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{ label: 'Monto gastado por mes', data, backgroundColor: '#4e73df' }]
+                    }
+                });
+
+                // Productos más comprados
+                const productos = productosMasComprados(compras);
+                const productosOrdenados = Object.entries(productos)
+                    .sort((a, b) => b[1].cantidad - a[1].cantidad)
+                    .slice(0, 10);
+                const tbody = document.getElementById('productos-mas-comprados');
+                productosOrdenados.forEach(([nombre, info]) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${nombre}</td><td>${info.cantidad}</td><td>${info.stock}</td>`;
+                    tbody.appendChild(tr);
+                });
+
+                // Análisis por categoría
+                const { gasto, cantidad } = agruparPorCategoria(compras);
+                const cats = Object.keys(gasto);
+                // Gasto por categoría
+                new Chart(document.getElementById('gastoCategoriaChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: cats,
+                        datasets: [{ label: 'Total gastado por categoría', data: cats.map(c => gasto[c]), backgroundColor: '#36a2eb' }]
+                    }
+                });
+                // Cantidad por categoría
+                new Chart(document.getElementById('cantidadCategoriaChart').getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: cats,
+                        datasets: [{ label: 'Cantidad comprada por categoría', data: cats.map(c => cantidad[c]), backgroundColor: ['#36a2eb', '#ff6384', '#ffcd56', '#4bc0c0', '#9966ff', '#ff9f40'] }]
+                    }
+                });
+
+                // Evolución diaria del gasto acumulado
+                const acumulados = getGastoAcumuladoPorDia(compras);
+                const meses = Object.keys(acumulados).sort().slice(-3); // últimos 3 meses
+                const labelsDias = Array.from({length: 31}, (_, i) => (i + 1).toString());
+                new Chart(document.getElementById('evolucionDiariaChart').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labelsDias,
+                        datasets: meses.map((mes, idx) => ({
+                            label: mes,
+                            data: acumulados[mes],
+                            borderColor: ['#36a2eb', '#ff6384', '#4e73df'][idx % 3],
+                            fill: false,
+                            tension: 0.1
+                        }))
+                    },
+                    options: {
+                        plugins: {
+                            title: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Día del mes' } },
+                            y: { title: { display: true, text: 'Gasto acumulado ($)' } }
+                        }
+                    }
+                });
+
+                // Frecuencia de compra sugerida
+                const frec = calcularFrecuenciaCompras(compras);
+
+                // Llenar select de categorías
+                const select = document.getElementById('filtro-categoria');
+                categorias.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.nombre;
+                    opt.textContent = cat.nombre;
+                    select.appendChild(opt);
+                });
+
+                // Render inicial
+                let ordenActual = null;
+                renderFrecuenciaTabla(frec, '', stockMap, ordenActual);
+
+                // Filtro por categoría
+                select.addEventListener('change', () => {
+                    renderFrecuenciaTabla(frec, select.value, stockMap, ordenActual);
+                });
+
+                // Ordenar por días para próxima compra
+                document.getElementById('ordenar-dias').addEventListener('click', () => {
+                    ordenActual = 'dias';
+                    renderFrecuenciaTabla(frec, select.value, stockMap, ordenActual);
+                });
+
+                // Ordenar por stock
+                document.getElementById('ordenar-stock').addEventListener('click', () => {
+                    ordenActual = 'stock';
+                    renderFrecuenciaTabla(frec, select.value, stockMap, ordenActual);
+                });
+            } catch (err) {
+                document.body.innerHTML = `<h2 style="color:red;">Error: ${err.message}</h2>`;
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
