@@ -32,6 +32,7 @@
     </table>
     <p id="totalMes"></p>
     <script>
+    // ...existing code...
     async function cargarVentasQR() {
         const mes = document.getElementById('mesSeleccionado').value;
         if (!mes) return alert('Selecciona un mes');
@@ -39,13 +40,27 @@
         const desde = `${anio}-${mesNum}-01`;
         const hasta = `${anio}-${mesNum}-31`;
 
-        const res = await fetch(`/ventas?desde=${desde}&hasta=${hasta}&medio_pago=qr`);
-        const ventas = await res.json();
+        // Solicitar ventas con medio_pago = qr y medio_pago = debito y combinar resultados
+        const [resQR, resDebito] = await Promise.all([
+            fetch(`/ventas?desde=${desde}&hasta=${hasta}&medio_pago=qr`),
+            fetch(`/ventas?desde=${desde}&hasta=${hasta}&medio_pago=debito`)
+        ]);
+        const [ventasQR, ventasDebito] = await Promise.all([resQR.json(), resDebito.json()]);
+
+        // Combinar y ordenar por fecha (desc)
+        let ventas = [...ventasQR, ...ventasDebito];
+        ventas.sort((a, b) => {
+            const da = new Date(a.fecha);
+            const db = new Date(b.fecha);
+            if (db - da !== 0) return db - da;
+            return b.venta_id - a.venta_id;
+        });
+
         const tbody = document.querySelector('#tabla-ventas-qr tbody');
         tbody.innerHTML = '';
 
         if (ventas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No hay ventas QR en este mes</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No hay ventas QR o débito en este mes</td></tr>`;
             return;
         }
         let totalMes = 0;
@@ -78,6 +93,7 @@
         });
         document.getElementById('totalMes').textContent = `Total del mes: $${totalMes.toFixed(2)}`;
     }
+    // ...existing code...
     </script>
 </body>
 </html>
