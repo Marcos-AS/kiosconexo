@@ -89,6 +89,11 @@
 <input type="number" id="agregarACaja" min="1" value="0">
 <button id="btnAgregarACaja">Agregar</button>
 
+<!-- Totales por medio de pago -->
+<div id="totalesMediosPago" style="margin-top:30px; border:1px solid #ccc; border-radius:8px; padding:12px;">
+    <h2 style="margin-top:0;">Totales por medio de pago</h2>
+    <div id="resumenMediosPago"></div>
+</div>
 
     <script>
         let productos = [];
@@ -603,6 +608,110 @@ document.getElementById('registrarVenta').onclick = async function() {
           document.getElementById("filtroFecha").value = hoy;
           cargarVentasRealizadas(); // ya carga filtrado a hoy
         });
+
+        async function cargarTotalesPorMedioPago() {
+    const fecha = document.getElementById('filtroFecha').value;
+    let url = '/ventas';
+    if (fecha) url += '?fecha=' + encodeURIComponent(fecha);
+    const res = await fetch(url);
+    const ventas = await res.json();
+
+    // Agrupa por medio de pago
+    const medios = {};
+    ventas.forEach(v => {
+        const medio = (v.medio_pago || 'efectivo').toLowerCase();
+        if (!medios[medio]) medios[medio] = { total: 0, ventas: [] };
+        medios[medio].total += parseFloat(v.total) || 0;
+        medios[medio].ventas.push(v);
+    });
+
+    // Orden de medios de pago
+    const orden = ['efectivo', 'transf', 'qr', 'debito', 'credito'];
+    const nombres = {
+        efectivo: 'Efectivo',
+        transf: 'Transferencia',
+        qr: 'QR',
+        debito: 'Débito',
+        credito: 'Crédito'
+    };
+
+    const resumenDiv = document.getElementById('resumenMediosPago');
+    resumenDiv.innerHTML = orden.map(medio => {
+        const info = medios[medio];
+        const total = info ? info.total.toFixed(2) : '0.00';
+        const ventas = info ? info.ventas : [];
+        const id = `detalle-medio-${medio}`;
+        return `
+            <div style="margin-bottom:10px;">
+                <b>${nombres[medio]}:</b> $${total}
+                <button onclick="toggleDetalleMedio('${id}')"
+                    style="font-size:12px; margin-left:8px;">
+                    Ver detalle ▼
+                </button>
+                <div id="${id}" style="display:none; margin-top:6px; margin-left:15px;">
+                    ${ventas.length === 0 ? '<i>No hay ventas</i>' : `
+                        <table border="1" style="border-collapse:collapse; width:90%;">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Total</th>
+                                    <th>Productos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ventas.map(v => `
+                                    <tr>
+                                        <td>${new Date(v.fecha).toLocaleString()}</td>
+                                        <td>$${parseFloat(v.total).toFixed(2)}</td>
+                                        <td>
+                                            <ul style="margin:0; padding-left:16px;">
+                                                ${v.detalle.map(d => `
+                                                    <li>${d.producto_nombre || d.producto} x${d.cantidad}</li>
+                                                `).join('')}
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Función global para expandir/ocultar
+window.toggleDetalleMedio = function(id) {
+    const div = document.getElementById(id);
+    if (!div) return;
+    const btn = div.previousElementSibling;
+    if (div.style.display === 'none') {
+        div.style.display = '';
+        if (btn) btn.textContent = 'Ocultar detalle ▲';
+    } else {
+        div.style.display = 'none';
+        if (btn) btn.textContent = 'Ver detalle ▼';
+    }
+};
+
+// Llama a la función cada vez que se cargan ventas
+async function cargarVentasRealizadasYMedios() {
+    await cargarVentasRealizadas();
+    await cargarTotalesPorMedioPago();
+}
+
+// Reemplaza las llamadas a cargarVentasRealizadas por cargarVentasRealizadasYMedios
+document.getElementById('btnFiltrarFecha').onclick = cargarVentasRealizadasYMedios;
+document.getElementById('btnLimpiarFecha').onclick = function() {
+    document.getElementById('filtroFecha').value = '';
+    cargarVentasRealizadasYMedios();
+};
+document.addEventListener("DOMContentLoaded", () => {
+    const hoy = new Date().toISOString().split("T")[0];
+    document.getElementById("filtroFecha").value = hoy;
+    cargarVentasRealizadasYMedios();
+});
 
     </script>
 </body>
