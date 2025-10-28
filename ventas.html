@@ -537,21 +537,23 @@ document.getElementById('registrarVenta').onclick = async function() {
             cantidad: item.cantidad,
             precio_unitario: item.precio
         })),
-        ...productosRestantes.map(item => {
-            const prod = productos.find(p => p.ean === item.ean);
-            let precio = prod.precio_venta ?? 0;
-            const promo = promociones
-                .filter(p => p.producto_ean === item.ean)
-                .sort((a, b) => b.cantidad - a.cantidad)[0];
-            if (promo && item.cantidad >= promo.cantidad) {
-                precio = promo.precio_promocion / promo.cantidad;
-            }
-            return {
-                ean: item.ean,
-                cantidad: item.cantidad,
-                precio_unitario: precio
-            };
-        })
+        ...productosRestantes
+            .filter(item => item.cantidad > 0)
+            .map(item => {
+                const prod = productos.find(p => p.ean === item.ean);
+                let precio = prod.precio_venta ?? 0;
+                const promo = promociones
+                    .filter(p => p.producto_ean === item.ean)
+                    .sort((a, b) => b.cantidad - a.cantidad)[0];
+                if (promo && item.cantidad >= promo.cantidad) {
+                    precio = promo.precio_promocion / promo.cantidad;
+                }
+                return {
+                    ean: item.ean,
+                    cantidad: item.cantidad,
+                    precio_unitario: precio
+                };
+            })
     ];
 
     try {

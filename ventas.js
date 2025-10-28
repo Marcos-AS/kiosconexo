@@ -102,7 +102,7 @@ app.post('/ventas', async (req, res) => {
     }
 
     // Luego calcula el resto como venta normal (sin promociones)
-    for (const { ean, cantidad, precio_unitario } of productos) {
+    for (const { ean, cantidad, precio_unitario } of productosRestantes) {
       // Obtener stock del producto
       const [productosDB] = await connection.query(
         'SELECT stock FROM producto WHERE ean = ?',
