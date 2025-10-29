@@ -43,6 +43,8 @@
         <option value="transf">Transferencia</option>
         <option value="qr">QR</option>
         <option value="debito">Débito</option>
+        <option value="credito">Crédito</option>
+        <option value="otros">Otros</option> <!-- Nueva opción -->
     </select>
     <button id="registrarVenta">Registrar Venta</button>
     <!-- Debajo del botón Registrar Venta -->
@@ -281,7 +283,14 @@ function aplicarPromocionesCombinadas(detalle) {
         `;
         tbody.appendChild(tr);
     });
-    document.getElementById('totalVenta').textContent = total.toFixed(2);
+    let totalConDescuento = total;
+    const medioPago = document.getElementById('medioPago').value;
+    if (medioPago === 'debito') {
+        totalConDescuento = +(total * (1 - 0.0362)).toFixed(2);
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 3,62% desc.)";
+    } else {
+        document.getElementById('totalVenta').textContent = total.toFixed(2);
+    }
 }
 
         // Nueva función global para cambiar cantidad
@@ -628,13 +637,14 @@ document.getElementById('registrarVenta').onclick = async function() {
     });
 
     // Orden de medios de pago
-    const orden = ['efectivo', 'transf', 'qr', 'debito', 'credito'];
+    const orden = ['efectivo', 'transf', 'qr', 'debito', 'credito', 'otros'];
     const nombres = {
         efectivo: 'Efectivo',
         transf: 'Transferencia',
         qr: 'QR',
         debito: 'Débito',
-        credito: 'Crédito'
+        credito: 'Crédito',
+        otros: 'Otros'
     };
 
     const resumenDiv = document.getElementById('resumenMediosPago');

@@ -139,9 +139,13 @@ app.post('/ventas', async (req, res) => {
     }
 
     // Actualizar total en la venta
+    let totalFinal = total;
+    if ((medio_pago || 'efectivo') === 'debito') {
+      totalFinal = +(total * (1 - 0.0362)).toFixed(2);
+    }
     await connection.query(
       'UPDATE ventas SET total = ? WHERE id = ?',
-      [total, ventaId]
+      [totalFinal, ventaId]
     );
 
     // Si el medio de pago es efectivo, suma al efectivo en caja
@@ -154,7 +158,7 @@ app.post('/ventas', async (req, res) => {
     }
 
     await connection.commit();
-    res.json({ message: 'Venta registrada exitosamente', ventaId, total });
+    res.json({ message: 'Venta registrada exitosamente', ventaId, total: totalFinal });
   } catch (err) {
     await connection.rollback();
     res.status(400).send(err.message);
