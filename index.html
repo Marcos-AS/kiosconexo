@@ -113,7 +113,6 @@
                 <th class="stock-col">Stock</th>
                 <th class="precio-venta-col">Precio de venta</th>
                 <th class="gramos-col">Gramos</th>
-                <th>Descripción</th>
                 <th class="marca-col">Marca</th>
                 <th class="categoria-col">Categoría</th>
             </tr>
@@ -271,6 +270,9 @@ async function filtrarProductos() {
         data = data.filter(prod => prod.precio_venta === null || prod.precio_venta === undefined || prod.precio_venta === '');
     }
 
+    // Ordena por stock descendente (mayor stock arriba)
+    data.sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0));
+
     mostrarProductos(data);
 }
 
@@ -359,7 +361,6 @@ function mostrarProductos(productos) {
                     <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
                     <button onclick="guardarGramos(this)">💾</button>
                 </td>
-                <td>${prod.descripcion || ''}</td>
                 <td class="marca-col">
                     <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 90%">
                     <button onclick="guardarMarca(this)">💾</button>
@@ -558,42 +559,6 @@ const inputBuscarNombre = document.getElementById('buscarNombre');
 const btnBuscarNombre = document.getElementById('btnBuscarNombre');
 const btnLimpiarNombre = document.getElementById('btnLimpiarNombre');
 
-async function filtrarProductos() {
-    const categoriaId = document.getElementById('filtroCategoria').value;
-    const proveedorId = document.getElementById('filtroProveedor').value;
-    const marcaId = document.getElementById('filtroMarca').value;
-    const eanBuscado = document.getElementById('buscarEan').value.trim();
-    const nombreBuscado = inputBuscarNombre.value.trim();
-    const filtroPrecioVenta = document.getElementById('filtroPrecioVenta').value;
-
-    let url = '/productos';
-    const params = new URLSearchParams();
-
-    if (categoriaId) params.append('categoriaId', categoriaId);
-    if (proveedorId) params.append('proveedorId', proveedorId);
-    if (marcaId) params.append('marcaId', marcaId);
-    if (eanBuscado) params.append('ean', eanBuscado);
-    if (nombreBuscado) params.append('nombre', nombreBuscado);
-
-    if (params.toString()) url += `?${params.toString()}`;
-
-    const res = await fetch(url);
-    let data = await res.json();
-
-    // Aplica el filtro de stock aquí, combinando con los demás
-    if (filtroStockActivo) {
-        data = data.filter(prod => prod.stock > 0);
-    }
-
-    // Aplica el filtro de precio de venta
-    if (filtroPrecioVenta === 'con') {
-        data = data.filter(prod => prod.precio_venta !== null && prod.precio_venta !== undefined && prod.precio_venta !== '');
-    } else if (filtroPrecioVenta === 'sin') {
-        data = data.filter(prod => prod.precio_venta === null || prod.precio_venta === undefined || prod.precio_venta === '');
-    }
-
-    mostrarProductos(data);
-}
 
 async function actualizarStock(boton) {
     const input = boton.previousElementSibling;

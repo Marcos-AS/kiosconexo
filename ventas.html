@@ -77,6 +77,7 @@
 
     <h3>Total de ventas en el período: $<span id="totalVentasPeriodo">0</span></h3>
     <h3>Total de diferencia (ganancia): $<span id="totalDiferenciaPeriodo">0</span></h3>
+    <h3>Porcentaje de ganancia: <span id="porcentajeGanancia">0</span>%</h3>
     <h3>Total en caja: $<span id="totalCaja">0</span></h3>
 
     <label for="efectivoApertura">Efectivo inicial hoy:</label>
@@ -412,6 +413,11 @@ async function cargarVentasRealizadas() {
 
     document.getElementById('totalVentasPeriodo').textContent = totalPeriodo.toFixed(2);
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
+    let porcentajeGanancia = 0;
+    if (totalPeriodo > 0) {
+        porcentajeGanancia = (totalDiferencia / totalPeriodo) * 100;
+    }
+    document.getElementById('porcentajeGanancia').textContent = porcentajeGanancia.toFixed(2);
 }
 
 // NUEVO: Botón para expandir/colapsar todas las filas

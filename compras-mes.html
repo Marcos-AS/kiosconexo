@@ -19,6 +19,10 @@
     <label>Proveedores:
     </label>
     <div id="proveedorCheckboxes"></div>
+    <label>
+    <input type="checkbox" id="verTodasCompras">
+    Ver todas las compras
+    </label>
     <button type="button" onclick="cargarComprasMes()">Buscar</button>
     <table id="tabla-compras-mes">
         <thead>
@@ -26,9 +30,9 @@
                 <th>Fecha</th>
                 <th>Proveedor</th>
                 <th>Producto</th>
-                <th>Gramos</th>
                 <th>Cantidad</th>
                 <th>Precio compra</th>
+                <th>Precio venta</th>
                 <th>Fecha vencimiento</th>
             </tr>
         </thead>
@@ -66,25 +70,39 @@ async function cargarProveedores() {
 }
 
     async function cargarComprasMes() {
-        const mes = document.getElementById('mesSeleccionado').value;
-        if (!mes) return alert('Selecciona un mes');
-        const [anio, mesNum] = mes.split('-');
-        const desde = `${anio}-${mesNum}-01`;
-        // Calcula el primer día del mes siguiente
-        let mesSiguiente = parseInt(mesNum, 10) + 1;
-        let anioSiguiente = anio;
-        if (mesSiguiente > 12) {
-            mesSiguiente = 1;
-            anioSiguiente = parseInt(anio, 10) + 1;
-        }
-        const hasta = `${anioSiguiente}-${String(mesSiguiente).padStart(2, '0')}-01`;
+        const verTodas = document.getElementById('verTodasCompras').checked;
 
         // Obtén los proveedores seleccionados
-        const select = document.getElementById('proveedorSelect');
         const proveedoresSeleccionados = Array.from(document.querySelectorAll('.proveedor-check:checked')).map(cb => cb.value);
-        // Consulta todas las compras del mes
-        const res = await fetch(`/compras?desde=${desde}&hasta=${hasta}`);
+
+        // Trae todas las compras o solo las del mes
+        let url = '/compras';
+        if (!verTodas) {
+            const mes = document.getElementById('mesSeleccionado').value;
+            if (!mes) return alert('Selecciona un mes o tilda "Ver todas las compras"');
+            const [anio, mesNum] = mes.split('-');
+            const desde = `${anio}-${mesNum}-01`;
+            let mesSiguiente = parseInt(mesNum, 10) + 1;
+            let anioSiguiente = anio;
+            if (mesSiguiente > 12) {
+                mesSiguiente = 1;
+                anioSiguiente = parseInt(anio, 10) + 1;
+            }
+            const hasta = `${anioSiguiente}-${String(mesSiguiente).padStart(2, '0')}-01`;
+            url += `?desde=${desde}&hasta=${hasta}`;
+        }
+
+        // Consulta todas las compras
+        const res = await fetch(url);
         const compras = await res.json();
+
+        // Trae todos los productos para armar un mapa ean -> precio_venta
+        const resProd = await fetch('/productos');
+        const productos = await resProd.json();
+        const mapaPrecioVenta = {};
+        productos.forEach(p => {
+            mapaPrecioVenta[p.ean] = p.precio_venta;
+        });
 
         // Filtra por proveedores seleccionados (si hay alguno seleccionado)
         let comprasFiltradas = compras;
@@ -96,7 +114,7 @@ async function cargarProveedores() {
         tbody.innerHTML = '';
 
         if (comprasFiltradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No hay compras en este mes</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No hay compras</td></tr>`;
             document.getElementById('totalMes').textContent = '';
             return;
         }
@@ -112,21 +130,22 @@ async function cargarProveedores() {
                     fechaVenc = `${d}/${m}/${y}`;
                 }
             }
+            const precioVenta = mapaPrecioVenta[c.producto_ean] !== undefined ? mapaPrecioVenta[c.producto_ean] : '-';
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${fechaSolo}</td>
                 <td>${c.proveedor_nombre}</td>
                 <td>${c.producto_nombre}</td>
-                <td>${c.gramos || ''}</td>
                 <td>${c.cantidad}</td>
                 <td>${c.precio_compra}</td>
+                <td>${precioVenta}</td>
                 <td>${fechaVenc || '-'}</td>
             `;
             tbody.appendChild(tr);
 
             totalMes += parseFloat(c.precio_compra) * parseInt(c.cantidad);
         });
-        document.getElementById('totalMes').textContent = `Total del mes: $${totalMes.toFixed(2)}`;
+        document.getElementById('totalMes').textContent = `Total: $${totalMes.toFixed(2)}`;
     }
 
     cargarProveedores();
