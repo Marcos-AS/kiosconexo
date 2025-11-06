@@ -88,3 +88,37 @@ app.get('/promociones-combinadas', async (req, res) => {
         connection.release();
     }
 });
+
+// Editar total de una promoción combinada
+app.put('/promociones-combinadas/:id', async (req, res) => {
+    const { precio_total } = req.body;
+    const { id } = req.params;
+    if (!precio_total) return res.status(400).send('Falta precio_total');
+    try {
+        await pool.query(
+            'UPDATE promocion SET precio_total = ? WHERE id = ?',
+            [precio_total, id]
+        );
+        res.send('Promoción combinada actualizada');
+    } catch (err) {
+        res.status(500).send('Error al actualizar promoción combinada');
+    }
+});
+
+// Eliminar una promoción combinada
+app.delete('/promociones-combinadas/:id', async (req, res) => {
+    const { id } = req.params;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.query('DELETE FROM promocion_productos WHERE promocion_id = ?', [id]);
+        await connection.query('DELETE FROM promocion WHERE id = ?', [id]);
+        await connection.commit();
+        res.send('Promoción combinada eliminada');
+    } catch (err) {
+        await connection.rollback();
+        res.status(500).send('Error al eliminar promoción combinada');
+    } finally {
+        connection.release();
+    }
+});

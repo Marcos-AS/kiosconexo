@@ -19,14 +19,22 @@
         <br><br>
         <button type="submit">Agregar promoción combinada</button>
     </form>
+    <datalist id="listaEan"></datalist>
     <div id="mensaje"></div>
     <script>
+        let productosGlobal = [];
+        async function cargarProductos() {
+            const res = await fetch('/productos');
+            productosGlobal = await res.json();
+        }
+        cargarProductos();
         // Permite agregar varios productos a la promoción
         function crearProductoInput() {
             const div = document.createElement('div');
             div.innerHTML = `
                 <label>EAN:</label>
-                <input type="text" class="ean" required>
+                <input type="text" class="ean" list="listaEan" required>
+                <span class="nombre-producto" style="color:#888; margin-left:8px;"></span>
                 <label>Cantidad:</label>
                 <input type="number" class="cantidad" min="1" required>
                 <button type="button" onclick="this.parentElement.remove()">Quitar</button>
@@ -70,6 +78,43 @@
             const msg = await res.text();
             document.getElementById('mensaje').textContent = msg;
         };
+
+        async function actualizarDatalist() {
+            const datalist = document.getElementById('listaEan');
+            datalist.innerHTML = '';
+            productosGlobal.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.ean;
+                option.label = `${p.nombre} (${p.ean})`;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Actualiza el datalist cuando se cargan los productos
+        cargarProductos().then(actualizarDatalist);
+
+        function agregarEventosNombreProducto(div) {
+            const inputEan = div.querySelector('.ean');
+            const spanNombre = div.querySelector('.nombre-producto');
+            inputEan.addEventListener('input', function() {
+                const prod = productosGlobal.find(p => p.ean === inputEan.value);
+                spanNombre.textContent = prod ? prod.nombre : '';
+            });
+        }
+
+        // Modifica donde agregas el producto:
+        document.getElementById('agregarProductoBtn').onclick = function() {
+            const div = crearProductoInput();
+            document.getElementById('productosPromo').appendChild(div);
+            agregarEventosNombreProducto(div);
+        };
+        // Y para los dos por defecto:
+        // const div1 = crearProductoInput();
+        // const div2 = crearProductoInput();
+        // document.getElementById('productosPromo').appendChild(div1);
+        // document.getElementById('productosPromo').appendChild(div2);
+        // agregarEventosNombreProducto(div1);
+        // agregarEventosNombreProducto(div2);
     </script>
 </body>
 </html>
