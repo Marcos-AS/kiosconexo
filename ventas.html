@@ -49,7 +49,7 @@
     <button id="registrarVenta">Registrar Venta</button>
     <!-- Debajo del botón Registrar Venta -->
     <div id="mensajeVenta" style="margin-top:10px;"></div>
-
+<!-- LISTA DE VENTAS------------------------------------------- -->
     <h2>Ventas realizadas</h2>
 
     <label for="filtroFecha">Filtrar por fecha:</label>
@@ -63,7 +63,7 @@
             <tr>
                 <th>Fecha</th>
                 <th>Total</th>
-                <th>Medio de pago</th> <!-- 👈 Nueva columna -->
+                <th>Medio de pago</th>
                 <th>Producto</th>
                 <th>Cantidad</th>
                 <th>Precio Venta</th>
@@ -95,6 +95,7 @@
 <!-- Totales por medio de pago -->
 <div id="totalesMediosPago" style="margin-top:30px; border:1px solid #ccc; border-radius:8px; padding:12px;">
     <h2 style="margin-top:0;">Totales por medio de pago</h2>
+    <div style="font-size:12px;color:#888;">(Los montos ya tienen descontada la comisión si corresponde)</div>
     <div id="resumenMediosPago"></div>
 </div>
 
@@ -228,7 +229,7 @@ function aplicarPromocionesCombinadas(detalle) {
     return { itemsPromo, productosRestantes, totalPromo };
 }
 
-        function renderDetalle() {
+function renderDetalle() {
     const tbody = document.getElementById('detalleVenta');
     tbody.innerHTML = '';
     let total = 0;
@@ -289,6 +290,9 @@ function aplicarPromocionesCombinadas(detalle) {
     if (medioPago === 'debito') {
         totalConDescuento = +(total * (1 - 0.0362)).toFixed(2);
         document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 3,62% desc.)";
+    } else if (medioPago === 'qr') {
+        totalConDescuento = +(total * (1 - 0.0097)).toFixed(2);
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 0,8% desc.)";
     } else {
         document.getElementById('totalVenta').textContent = total.toFixed(2);
     }
@@ -339,20 +343,64 @@ async function cargarVentasRealizadas() {
 
     let totalPeriodo = 0;
     let totalDiferencia = 0;
+    let totalComisiones = 0;
 
     ventas.forEach((v, ventaIndex) => {
-        totalPeriodo += parseFloat(v.total) || 0;
+        
+        let totalNeto = parseFloat(v.total) || 0;
+        let comision = 0;
+        let totalBruto = totalNeto;
 
+        if (v.medio_pago === 'debito') {
+            totalBruto = +(totalNeto / (1 - 0.0362));
+            comision = totalBruto - totalNeto;
+        } else if (v.medio_pago === 'qr') {
+            // let totalAux = totalBruto;
+            totalBruto = +(totalNeto / (1 - 0.0097));
+            // if (totalBruto > totalAux) {
+            //     totalBruto = totalAux;
+            //     totalNeto -= totalNeto * 0.0097; 
+            // }
+            comision = totalBruto - totalNeto;
+        }
+        totalComisiones += comision;
+        totalPeriodo += totalBruto;
+
+        // Título de la venta: muestra el monto bruto y neto si hay comisión
         const trVenta = document.createElement('tr');
         trVenta.style.backgroundColor = '#f0f0f0';
         trVenta.style.cursor = 'pointer';
         trVenta.innerHTML = `
             <td>${new Date(v.fecha).toLocaleString()}</td>
-            <td>$${v.total}</td>
-            <td>${v.medio_pago || '-'}</td> <!-- 👈 Mostrar medio de pago -->
+            <td>
+                ${comision > 0.001
+                    ? `<span title="Antes de comisión">$${totalBruto.toFixed(2)}</span> <br>
+                       <span style="font-size:12px;color:#888;">Neto: $${totalNeto.toFixed(2)}</span>`
+                    : `$${totalNeto.toFixed(2)}`
+                }
+            </td>
+            <td>${v.medio_pago || '-'}</td>
             <td colspan="4"><strong>Ver productos ▼</strong></td>
         `;
         tbody.appendChild(trVenta);
+
+        // Si hay comisión, agrega un ítem especial (solo informativo)
+        if (comision > 0.01) {
+            const trComision = document.createElement('tr');
+            trComision.classList.add(`detalle-venta-${ventaIndex}`);
+            trComision.style.display = estadoExpandidoGlobal ? '' : 'none';
+            trComision.innerHTML = `
+                <td></td>
+                <td></td>
+                <td style="color:#b71c1c;"><i>Cargo por comisión</i></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td style="color:#b71c1c;">-$${comision.toFixed(2)}</td>
+                <td></td>
+            `;
+            tbody.appendChild(trComision);
+        }
 
         v.detalle.forEach(d => {
             const pv = parseFloat(d.precio_unitario) || 0;
@@ -410,7 +458,7 @@ async function cargarVentasRealizadas() {
             flecha.textContent = mostrando ? 'Ver productos ▼' : 'Ocultar productos ▲';
         });
     });
-
+    totalDiferencia -= totalComisiones;
     document.getElementById('totalVentasPeriodo').textContent = totalPeriodo.toFixed(2);
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
     let porcentajeGanancia = 0;
@@ -420,7 +468,6 @@ async function cargarVentasRealizadas() {
     document.getElementById('porcentajeGanancia').textContent = porcentajeGanancia.toFixed(2);
 }
 
-// NUEVO: Botón para expandir/colapsar todas las filas
 document.getElementById('btnExpandirTodas').onclick = function() {
     estadoExpandidoGlobal = !estadoExpandidoGlobal;
     const filas = document.querySelectorAll('[class^="detalle-venta-"]');
@@ -626,7 +673,7 @@ document.getElementById('registrarVenta').onclick = async function() {
           cargarVentasRealizadas(); // ya carga filtrado a hoy
         });
 
-        async function cargarTotalesPorMedioPago() {
+async function cargarTotalesPorMedioPago() {
     const fecha = document.getElementById('filtroFecha').value;
     let url = '/ventas';
     if (fecha) url += '?fecha=' + encodeURIComponent(fecha);
@@ -636,7 +683,7 @@ document.getElementById('registrarVenta').onclick = async function() {
     // Agrupa por medio de pago
     const medios = {};
     ventas.forEach(v => {
-        const medio = (v.medio_pago || 'efectivo').toLowerCase();
+        const medio = (v.medio_pago || 'efectivo').toLowerCase();        
         if (!medios[medio]) medios[medio] = { total: 0, ventas: [] };
         medios[medio].total += parseFloat(v.total) || 0;
         medios[medio].ventas.push(v);

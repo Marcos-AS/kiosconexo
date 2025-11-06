@@ -49,7 +49,7 @@ app.get('/compras', (req, res) => {
 
 // Registrar una compra
 app.post('/compras', async (req, res) => {
-    const { proveedor, producto, cantidad, precio_compra, fecha_vencimiento, medio_pago } = req.body;
+    const { proveedor, producto, cantidad, precio_compra, fecha_vencimiento, medio_pago, aumentar_stock } = req.body;
     if (!proveedor || !producto || !cantidad || !precio_compra) {
         return res.status(400).send('Faltan datos');
     }
@@ -67,6 +67,14 @@ app.post('/compras', async (req, res) => {
             await pool.query(
                 'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
                 [-precio_compra * cantidad, fechaHoy]
+            );
+        }
+
+        // Aumentar stock solo si el checkbox está tildado (por defecto true)
+        if (aumentar_stock === undefined || aumentar_stock === true || aumentar_stock === 'true') {
+            await pool.query(
+                'UPDATE producto SET stock = stock + ? WHERE ean = ?',
+                [cantidad, producto]
             );
         }
 

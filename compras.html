@@ -22,6 +22,9 @@
         <label>Precio de compra:</label>
         <input type="number" id="precioCompra" min="0" step="0.01">
         <br>
+        <button type="button" id="btnSumar21">+21%</button>
+        <button type="button" id="btnDividirPorCantidad">÷ Cantidad</button>
+        <br>
         <label>Fecha de vencimiento:</label>
         <input type="date" id="fechaVencimiento">
         <br>
@@ -30,6 +33,11 @@
             <option value="efectivo">Efectivo</option>
             <option value="otro">Otro</option>
         </select>
+        <br>
+        <label>
+        <input type="checkbox" id="aumentarStock" checked>
+        Aumentar stock al registrar compra
+        </label>
         <br>
         <button type="button" id="agregarCompra">Registrar Compra</button>
     </form>
@@ -213,7 +221,34 @@ async function editarPrecio(id, precioActual) {
     }
 }
 
+document.getElementById('btnSumar21').onclick = function() {
+    const input = document.getElementById('precioCompra');
+    let valor = parseFloat(input.value);
+    if (isNaN(valor) || valor <= 0) {
+        alert('Ingresa un precio válido primero');
+        return;
+    }
+    valor = +(valor * 1.21).toFixed(2);
+    input.value = valor;
+};
 
+document.getElementById('btnDividirPorCantidad').onclick = function() {
+    const precioInput = document.getElementById('precioCompra');
+    const cantidadInput = document.getElementById('cantidad');
+    let precio = parseFloat(precioInput.value);
+    let cantidad = parseFloat(cantidadInput.value);
+
+    if (isNaN(precio) || precio <= 0) {
+        alert('Ingresa un precio válido primero');
+        return;
+    }
+    if (isNaN(cantidad) || cantidad <= 0) {
+        alert('Ingresa una cantidad válida primero');
+        return;
+    }
+    const resultado = +(precio / cantidad).toFixed(2);
+    precioInput.value = resultado;
+};
 
 
 document.getElementById('agregarCompra').onclick = async function() {
@@ -223,6 +258,7 @@ document.getElementById('agregarCompra').onclick = async function() {
     const precioCompra = parseFloat(document.getElementById('precioCompra').value);
     const fechaVencimiento = document.getElementById('fechaVencimiento').value; // NUEVO
     const medioPago = document.getElementById('medioPago').value;
+    const aumentarStock = document.getElementById('aumentarStock').checked;
 
     if (!proveedor || !producto || !cantidad || !precioCompra) {
         alert('Completa todos los campos');
@@ -241,8 +277,9 @@ document.getElementById('agregarCompra').onclick = async function() {
                 producto,
                 cantidad,
                 precio_compra: precioCompra,
-                fecha_vencimiento: fechaVencimiento || null, // NUEVO
-                medio_pago: medioPago
+                fecha_vencimiento: fechaVencimiento || null,
+                medio_pago: medioPago,
+                aumentar_stock: aumentarStock // <--- nuevo campo
             })
         });
 
