@@ -43,6 +43,7 @@
     </form>
     <h2>Compras recientes</h2>
     <div id="totalHoy" style="font-weight: bold; margin-bottom: 10px;"></div>
+    <div id="totalPorProveedor" style="font-weight: bold; margin-bottom: 10px;"></div>
     <table border="1">
         <thead>
             <tr>
@@ -111,12 +112,13 @@ async function cargarCompras() {
     const hoy = new Date().toISOString().split('T')[0];
     let totalHoy = 0;
 
+    // Acumulador por proveedor SOLO para hoy
+    const totalesPorProveedor = {};
+
     compras.forEach(c => {
         const fechaSolo = c.fecha ? c.fecha.split('T')[0] : '';
-        // Formatea la fecha de vencimiento a dd/mm/aaaa
         let fechaVenc = '';
         if (c.fecha_vencimiento) {
-            // Extrae solo la parte de la fecha
             let soloFecha = c.fecha_vencimiento.split('T')[0];
             if (soloFecha && soloFecha.includes('-')) {
                 const [y, m, d] = soloFecha.split('-');
@@ -146,11 +148,23 @@ async function cargarCompras() {
             const precio = parseFloat(c.precio_compra) || 0;
             const cantidad = parseInt(c.cantidad) || 0;
             totalHoy += precio * cantidad;
+
+            // Total por proveedor SOLO para hoy
+            const proveedor = c.proveedor_nombre || 'Sin proveedor';
+            if (!totalesPorProveedor[proveedor]) totalesPorProveedor[proveedor] = 0;
+            totalesPorProveedor[proveedor] += precio * cantidad;
         }
     });
 
     document.getElementById('totalHoy').textContent =
         `Total de compras hoy: $${totalHoy.toFixed(2)}`;
+
+    // Mostrar totales por proveedor SOLO para hoy
+    const totalPorProveedorDiv = document.getElementById('totalPorProveedor');
+    totalPorProveedorDiv.innerHTML = '<u>Total de compras de hoy por proveedor:</u><br>' +
+        Object.entries(totalesPorProveedor)
+            .map(([prov, total]) => `${prov}: $${total.toFixed(2)}`)
+            .join('<br>');
 }
 
 async function guardarPrecioCompra(button) {
