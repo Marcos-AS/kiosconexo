@@ -22,6 +22,7 @@
     <a href="productos-precios.html">Margen productos</a><br>
     <a href="kpi.html">KPIs</a>
     <a href="analisis-compras.html">Análisis de las compras</a>
+    <br><a href="bajo_stock.html">Productos con bajo stock</a>
 
     <form action="" id="ingresar">
     <label for="ean">EAN</label>
@@ -96,14 +97,6 @@
         Filtrar por precio de venta
     </label>
 
-    <label for="filtroMarcaBajoStock">
-    Filtrar bajo stock por marca:
-    <select id="filtroMarcaBajoStock">
-        <option value="">-- Todas las marcas --</option>
-    </select>
-    </label>
-    <div id="alerta-bajo-stock"></div>
-    <button id="btn-exportar-bajo-stock">Exportar bajo stock a PDF</button>
 
 
     <table border="1">
@@ -282,10 +275,11 @@ async function filtrarProductos() {
         const res = await fetch('/productos');
         let productos = await res.json();
 
-        // Elimina este bloque, ya no filtra por stock aquí
-        // if (filtroStockActivo) {
-        //     productos = productos.filter(prod => prod.stock > 0);
-        // }
+        //Elimina este bloque, ya no filtra por stock aquí
+        if (filtroStockActivo) {
+            productos = productos.filter(prod => prod.stock > 0);
+        }
+
 
         mostrarProductos(productos);
     } catch (e) {
@@ -335,50 +329,52 @@ function mostrarProductos(productos) {
     const tbody = document.getElementById('lista-productos');
     tbody.innerHTML = '';
 
-        productos.forEach(prod => {
-            const tr = document.createElement('tr');
+    productos.forEach(prod => {
+        const tr = document.createElement('tr');
 
-            // Precio inicial (puede ser vacío)
-            let precioInicial = '';
+        // Sanitizar valores nulos o undefined
+        const stockVal = prod.stock != null && !isNaN(prod.stock) ? prod.stock : '';
+        const precioVentaVal = prod.precio_venta != null && !isNaN(prod.precio_venta) ? prod.precio_venta : '';
+        const gramosVal = prod.gramos != null && !isNaN(prod.gramos) ? prod.gramos : '';
+        const marcaVal = prod.marca_nombre || '';
+        const categoriaVal = prod.categoria_nombre || '';
 
-            tr.innerHTML = `
-                <td class="ean-col">
-                    ${prod.ean}
-                    <button onclick="pegarEAN('${prod.ean}')">📋</button>
-                </td>
-                <td class="nombre-col">
-                    <input type="text" value="${prod.nombre}" data-ean="${prod.ean}" class="nombre-edit" style="width: 98%; min-width: 120px">
-                    <button onclick="guardarNombre(this)">💾</button>
-                </td>
-                <td class="stock-col">
-                    <input type="number" min="0" value="${prod.stock != null ? prod.stock : ''}" data-ean="${prod.ean}" />
-                    <button onclick="actualizarStock(this)">💾</button>
-                </td>
-                <td class="precio-venta-col">
-                    <input type="number" min="0" step="0.01" value="${prod.precio_venta ?? ''}" data-ean="${prod.ean}" class="input-precio-venta">
-                    <button onclick="guardarPrecioVenta(this)">💾</button>
-                </td>
-                <td class="gramos-col">
-                    <input type="number" step="any" data-ean="${prod.ean}" value="${prod.gramos}" />
-                    <button onclick="guardarGramos(this)">💾</button>
-                </td>
-                <td class="marca-col">
-                    <input type="text" value="${prod.marca_nombre}" data-ean="${prod.ean}" class="marca-edit" style="width: 90%">
-                    <button onclick="guardarMarca(this)">💾</button>
-                </td>
-                <td class="categoria-col">
-                    <input type="text" value="${prod.categoria_nombre}" data-ean="${prod.ean}" class="categoria-edit" style="width: 90%" list="listaCategorias">
-                    <button onclick="guardarCategoria(this)">💾</button>
-                </td>
-            `;
-            //boton eliminar producto
-                // <td>
-                //     <button onclick="eliminarProducto('${prod.ean}')" style="color:red;">🗑️ Eliminar</button>
-                // </td>
+        tr.innerHTML = `
+            <td class="ean-col">
+                ${prod.ean}
+                <button onclick="pegarEAN('${prod.ean}')">📋</button>
+            </td>
+            <td class="nombre-col">
+                <input type="text" value="${prod.nombre || ''}" data-ean="${prod.ean}" class="nombre-edit" style="width: 98%; min-width: 120px">
+                <button onclick="guardarNombre(this)">💾</button>
+            </td>
+            <td class="stock-col">
+                <input type="number" min="0" value="${stockVal}" data-ean="${prod.ean}" />
+                <button onclick="actualizarStock(this)">💾</button>
+            </td>
+            <td class="precio-venta-col">
+                <input type="number" min="0" step="0.01" value="${precioVentaVal}" data-ean="${prod.ean}" class="input-precio-venta">
+                <button onclick="guardarPrecioVenta(this)">💾</button>
+            </td>
+            <td class="gramos-col">
+                <input type="number" step="any" data-ean="${prod.ean}" value="${gramosVal}" />
+                <button onclick="guardarGramos(this)">💾</button>
+            </td>
+            <td class="marca-col">
+                <input type="text" value="${marcaVal}" data-ean="${prod.ean}" class="marca-edit" style="width: 90%">
+                <button onclick="guardarMarca(this)">💾</button>
+            </td>
+            <td class="categoria-col">
+                <input type="text" value="${categoriaVal}" data-ean="${prod.ean}" class="categoria-edit" style="width: 90%" list="listaCategorias">
+                <button onclick="guardarCategoria(this)">💾</button>
+            </td>
+        `;
 
-    
-            tbody.appendChild(tr);
-    });}
+        tbody.appendChild(tr);
+    });
+}
+
+
 
 async function cargarProveedoresFiltro() {
     try {
@@ -715,207 +711,30 @@ document.getElementById('ingresar').addEventListener('keydown', function (e) {
     }
 });
 
-async function cargarMarcasBajoStock() {
-    try {
-        const res = await fetch('/marcas');
-        let marcas = await res.json();
-        // Ordenar alfabéticamente por nombre
-        marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
-        const select = document.getElementById('filtroMarcaBajoStock');
-        select.innerHTML = '<option value="">-- Todas las marcas --</option>';
-        marcas.forEach(marca => {
-            const option = document.createElement('option');
-            option.value = marca.nombre;
-            option.textContent = marca.nombre;
-            select.appendChild(option);
-        });
-    } catch (e) {
-        console.error('Error al cargar marcas para bajo stock:', e);
-    }
-}
-
-async function mostrarProductosBajoStock() {
-    const div = document.getElementById('alerta-bajo-stock');
-    div.innerHTML = '';
-    try {
-        const res = await fetch('/productos-bajo-stock');
-        let productos = await res.json();
-
-        // Filtra por marca seleccionada
-        const marcaSeleccionada = document.getElementById('filtroMarcaBajoStock').value;
-        if (marcaSeleccionada) {
-            productos = productos.filter(p => p.marca_nombre === marcaSeleccionada);
-        }
-
-        if (productos.length === 0) {
-            div.style.display = 'none';
-            return;
-        }
-        div.style.display = 'block';
-
-        // Agrupa por categoría y por stock
-        const categorias = {};
-        productos.forEach(p => {
-            const cat = p.categoria_nombre || 'Sin categoría';
-            if (!categorias[cat]) categorias[cat] = { '2': [], '1': [], '0': [] };
-            if (p.stock === 2) categorias[cat]['2'].push(p);
-            else if (p.stock === 1) categorias[cat]['1'].push(p);
-            else categorias[cat]['0'].push(p);
-        });
-
-        let expandido = true;
-
-        function render() {
-            div.innerHTML = `
-                <div style="background:#ffd6d6; color:#b71c1c; border:1px solid #b71c1c; padding:10px; margin-bottom:10px; border-radius:6px;">
-                    <b>¡Atención!</b> Productos por acabarse, agrupados por categoría y nivel de stock:
-                    <button id="toggle-bajo-stock" style="margin-left:10px; font-size:12px;">
-                        ${expandido ? 'Ocultar' : 'Mostrar'}
-                    </button>
-                    <div id="bajo-stock-lista" style="margin-top:8px;${expandido ? '' : 'display:none;'}">
-                        ${Object.keys(categorias).sort().map(cat => `
-                            <div style="margin-bottom:10px;">
-                                <span style="font-weight:bold; color:#388e3c;">${cat}</span>
-                                ${['2','1','0'].map(nivel => categorias[cat][nivel].length > 0 ? `
-                                    <div style="margin-left:15px;">
-                                        <span style="color:${nivel==='0'?'#d32f2f':nivel==='1'?'#f57c00':'#fbc02d'}; font-weight:bold;">
-                                            Stock = ${nivel}:
-                                        </span>
-                                        <ul style="margin:4px 0 0 20px;">
-                                            ${categorias[cat][nivel].map(p => `
-                                                <li>
-                                                    <b>${p.nombre}</b> (${p.gramos || ''}g)
-                                                </li>
-                                            `).join('')}
-                                        </ul>
-                                    </div>
-                                ` : '').join('')}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            document.getElementById('toggle-bajo-stock').onclick = function() {
-                expandido = !expandido;
-                render();
-            };
-        }
-
-        render();
-    } catch (e) {
-        div.innerHTML = '';
-        div.style.display = 'none';
-    }
-}
-
-document.getElementById('filtroMarcaBajoStock').addEventListener('change', mostrarProductosBajoStock);
-
-document.getElementById('btn-exportar-bajo-stock').addEventListener('click', async () => {
-    try {
-        const res = await fetch('/productos-bajo-stock');
-        const productos = await res.json();
-        if (!productos.length) {
-            alert('No hay productos con bajo stock.');
-            return;
-        }
-
-        // Agrupar por categoría
-        const categorias = {};
-        productos.forEach(p => {
-            const cat = p.categoria_nombre || 'Sin categoría';
-            if (!categorias[cat]) categorias[cat] = [];
-            categorias[cat].push(p);
-        });
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const margin = 10;
-        const colWidth = (pageWidth - margin * 3) / 2; // dos columnas
-        const lineHeight = 6;
-        let x = margin;
-        let y = margin + 10;
-
-        pdf.setFontSize(14);
-        pdf.text('Listado de Productos con Bajo Stock', pageWidth / 2, margin + 5, { align: 'center' });
-        pdf.setFontSize(10);
-
-        const coloresStock = {
-            2: [251, 192, 45],   // amarillo
-            1: [245, 124, 0],    // naranja
-            0: [211, 47, 47]     // rojo
-        };
-
-        for (const categoria of Object.keys(categorias).sort()) {
-            const productosCat = categorias[categoria];
-
-            // 📌 Agrupar dentro de la categoría por nivel de stock
-            const niveles = { 2: [], 1: [], 0: [] };
-            productosCat.forEach(p => {
-                if (p.stock >= 2) niveles[2].push(p);
-                else if (p.stock === 1) niveles[1].push(p);
-                else niveles[0].push(p);
+    async function cargarMarcasBajoStock() {
+        try {
+            const res = await fetch('/marcas');
+            let marcas = await res.json();
+            // Ordenar alfabéticamente por nombre
+            marcas.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            const select = document.getElementById('filtroMarcaBajoStock');
+            select.innerHTML = '<option value="">-- Todas las marcas --</option>';
+            marcas.forEach(marca => {
+                const option = document.createElement('option');
+                option.value = marca.nombre;
+                option.textContent = marca.nombre;
+                select.appendChild(option);
             });
-
-            pdf.setFont(undefined, 'bold');
-            pdf.text(categoria, x, y);
-            pdf.setFont(undefined, 'normal');
-            y += lineHeight;
-
-            for (const nivel of [2, 1, 0]) {
-                if (niveles[nivel].length === 0) continue;
-
-                // Color visual y título
-                pdf.setTextColor(...coloresStock[nivel]);
-                pdf.text(`Stock = ${nivel}`, x, y);
-                y += lineHeight;
-
-                pdf.setTextColor(0, 0, 0); // volver a negro para productos
-                for (const p of niveles[nivel]) {
-                    const texto = `${p.nombre} (${p.marca_nombre || 'Sin marca'})`;
-                    const splitted = pdf.splitTextToSize(texto, colWidth - 2);
-                    splitted.forEach(line => {
-                        pdf.text(line, x, y);
-                        y += lineHeight;
-                    });
-
-                    // Salto de columna o página
-                    if (y > 280) {
-                        if (x === margin) {
-                            x = margin + colWidth + margin;
-                            y = margin + 15;
-                        } else {
-                            pdf.addPage();
-                            x = margin;
-                            y = margin + 15;
-                        }
-                    }
-                }
-
-                y += lineHeight; // espacio entre niveles
-            }
-
-            y += lineHeight; // espacio entre categorías
+        } catch (e) {
+            console.error('Error al cargar marcas para bajo stock:', e);
         }
-
-        pdf.save('productos_bajo_stock.pdf');
-    } catch (e) {
-        console.error('Error al exportar bajo stock:', e);
-        alert('Error al generar el PDF.');
     }
-});
 
-
-
-
-    cargarMarcasBajoStock();
     cargarCategorias();
     cargarCategoriasSelect();
     cargarProveedoresFiltro();
     cargarMarcasFiltro();
     cargarProductos();
-    mostrarProductosBajoStock();
     </script>
 </body>
 </html>
