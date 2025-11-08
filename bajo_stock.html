@@ -53,11 +53,29 @@
         async function cargarProductosBajoStock() {
             const res = await fetch('/productos-bajo-stock');
             let productos = await res.json();
+
+            // Obtener últimos precios de compra
+            const resCompras = await fetch('/compras/ultimas');
+            const ultimasCompras = await resCompras.json();
+
+            // Agregar info al producto
+            productos.forEach(p => {
+                const ultima = ultimasCompras.find(u => u.producto_ean === p.ean);
+                if (ultima) {
+                    p.ultimo_precio_compra = ultima.precio_compra;
+                    p.ultimo_proveedor = ultima.proveedor_nombre;
+                } else {
+                    p.ultimo_precio_compra = null;
+                    p.ultimo_proveedor = null;
+                }
+            });
+
             productosOriginales = productos.map(p => ({ ...p, visible: true }));
             productosVisibles = [...productosOriginales];
             renderTabla();
             cargarMarcasBajoStock();
         }
+
 
         function aplicarFiltros() {
             const marcaSeleccionada = document.getElementById('filtroMarcaBajoStock').value;
@@ -146,54 +164,140 @@
             renderTabla();
         };
 
-        document.getElementById('btn-exportar-pdf').onclick = function() {
-            const visibles = productosVisibles.filter(p => p.visible);
-            if (visibles.length === 0) {
-                alert('No hay productos visibles para exportar.');
-                return;
-            }
-            const categorias = {};
-            visibles.forEach(p => {
-                const cat = p.categoria_nombre || 'Sin categoría';
-                if (!categorias[cat]) categorias[cat] = { '2': [], '1': [], '0': [] };
-                if (p.stock === 2) categorias[cat]['2'].push(p);
-                else if (p.stock === 1) categorias[cat]['1'].push(p);
-                else categorias[cat]['0'].push(p);
-            });
+document.getElementById('btn-exportar-pdf').onclick = function() {
+    const visibles = productosVisibles.filter(p => p.visible);
+    if (visibles.length === 0) {
+        alert('No hay productos visibles para exportar.');
+        return;
+    }
 
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            pdf.setFontSize(14);
-            pdf.text('Productos con Bajo Stock (visibles)', 10, 10);
+    // Agrupar por categoría y stock
+    const categorias = {};
+    visibles.forEach(p => {
+        const cat = p.categoria_nombre || 'Sin categoría';
+        if (!categorias[cat]) categorias[cat] = { '2': [], '1': [], '0': [] };
+        if (p.stock === 2) categorias[cat]['2'].push(p);
+        else if (p.stock === 1) categorias[cat]['1'].push(p);
+        else categorias[cat]['0'].push(p);
+    });
 
-            let y = 18;
-            pdf.setFontSize(10);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-            Object.keys(categorias).sort().forEach(cat => {
+    const margenX = 10;
+    const margenY = 10;
+    const anchoCol = 95; // mitad de la hoja A4 menos margen
+    const altoPagina = 280;
+
+    pdf.setFontSize(14);
+    pdf.text('Productos con Bajo Stock (visibles)', margenX, margenY);
+    pdf.setFontSize(10);
+
+    let x = margenX;
+    let y = margenY + 10;
+
+    // función auxiliar para cambiar color por nivel de stock
+    function setColorPorStock(nivel) {
+        if (nivel === '0') pdf.setTextColor(211, 47, 47);     // rojo
+        else if (nivel === '1') pdf.setTextColor(245, 124, 0); // naranja
+        else pdf.setTextColor(251, 192, 45);                   // amarillo
+    }
+
+    Object.keys(categorias).sort().forEach(cat => {
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(42, 93, 159);
+        pdf.text(cat, margenX, y);
+        pdf.setFont(undefined, 'normal');
+        pdf.setTextColor(0, 0, 0);
+        y += 6;
+
+        ['2', '1', '0'].forEach(nivel => {
+            const lista = categorias[cat][nivel];
+            if (lista.length === 0) return;
+
+            setColorPorStock(nivel);
+            pdf.setFont(undefined, 'bold');
+            pdf.text(`Stock = ${nivel}`, x, y);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFont(undefined, 'normal');
+            y += 5;
+
+            // Recorremos de a pares (2 columnas)
+            for (let i = 0; i < lista.length; i += 2) {
+                const col1 = lista[i];
+                const col2 = lista[i + 1];
+
+                // Dibujar primera columna
+                let yInicio = y;
+
                 pdf.setFont(undefined, 'bold');
-                pdf.text(cat, 10, y);
-                y += 6;
-                pdf.setFont(undefined, 'normal');
-                ['2','1','0'].forEach(nivel => {
-                    if (categorias[cat][nivel].length > 0) {
-                        pdf.setTextColor(nivel==='0'?211: nivel==='1'?245:251, nivel==='0'?47: nivel==='1'?124:192, nivel==='0'?47: nivel==='1'?0:45);
-                        pdf.text(`Stock = ${nivel}`, 12, y);
-                        y += 6;
-                        pdf.setTextColor(0,0,0);
-                        categorias[cat][nivel].forEach(p => {
-                            const texto = `${p.ean} - ${p.nombre} (${p.marca_nombre || ''}) | Stock: ${p.stock} | $${p.precio_venta ?? ''} | ${p.gramos ?? ''}g`;
-                            pdf.text(texto, 16, y);
-                            y += 6;
-                            if (y > 280) { pdf.addPage(); y = 18; }
-                        });
-                        y += 2;
-                    }
-                });
-                y += 2;
-            });
+                const nombre1 = pdf.splitTextToSize(`${col1.nombre} (${col1.marca_nombre || ''})`, anchoCol - 20);
+                pdf.text(nombre1, x, y);
+                y += nombre1.length * 4;
 
-            pdf.save('bajo_stock_visibles.pdf');
-        };
+                pdf.setFont(undefined, 'normal');
+                const detalles1 = [
+                    `Stock: ${col1.stock} | ${col1.gramos ?? ''}g`,
+                    `Últ. compra: $${col1.ultimo_precio_compra ?? 'N/D'} - ${col1.ultimo_proveedor ?? 'N/D'}`,
+                    `Precio venta: $${col1.precio_venta ?? 'N/D'}`
+                ];
+                detalles1.forEach(line => { pdf.text(line, x + 4, y); y += 4; });
+
+                // Segunda columna (si existe)
+                if (col2) {
+                    let y2 = yInicio;
+                    let x2 = margenX + anchoCol;
+
+                    pdf.setFont(undefined, 'bold');
+                    const nombre2 = pdf.splitTextToSize(`${col2.nombre} (${col2.marca_nombre || ''})`, anchoCol - 20);
+                    pdf.text(nombre2, x2, y2);
+                    y2 += nombre2.length * 4;
+
+                    pdf.setFont(undefined, 'normal');
+                    const detalles2 = [
+                        `Stock: ${col2.stock} | ${col2.gramos ?? ''}g`,
+                        `Últ. compra: $${col2.ultimo_precio_compra ?? 'N/D'} - ${col2.ultimo_proveedor ?? 'N/D'}`,
+                        `Precio venta: $${col2.precio_venta ?? 'N/D'}`
+                    ];
+                    detalles2.forEach(line => { pdf.text(line, x2 + 4, y2); y2 += 4; });
+
+                    // Calcular cuál columna fue más larga
+                    y = Math.max(y, y2);
+                }
+
+                y += 6; // espacio entre filas de productos
+
+                // Control de salto de página
+                if (y > altoPagina) {
+                    pdf.addPage();
+                    x = margenX;
+                    y = margenY + 10;
+                    pdf.setFont(undefined, 'bold');
+                    pdf.setTextColor(42, 93, 159);
+                    pdf.text(cat + ' (cont.)', x, y);
+                    pdf.setTextColor(0, 0, 0);
+                    pdf.setFont(undefined, 'normal');
+                    y += 8;
+                }
+            }
+
+            y += 6; // espacio entre niveles de stock
+        });
+
+        y += 8; // espacio entre categorías
+        if (y > altoPagina - 20) {
+            pdf.addPage();
+            x = margenX;
+            y = margenY + 10;
+        }
+    });
+
+    pdf.save('bajo_stock_visibles.pdf');
+};
+
+
+
+
 
         async function cargarMarcasBajoStock() {
             try {

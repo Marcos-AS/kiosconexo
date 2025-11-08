@@ -112,3 +112,25 @@ app.put('/compras/:id/fecha-vencimiento', async (req, res) => {
         res.status(500).send('Error al actualizar fecha de vencimiento');
     }
 });
+
+app.get('/compras/ultimas', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                c.producto AS producto_ean,
+                c.precio_compra,
+                p.nombre AS proveedor_nombre
+            FROM compras c
+            JOIN proveedor p ON c.proveedor = p.id
+            INNER JOIN (
+                SELECT producto, MAX(fecha) AS ultima_fecha
+                FROM compras
+                GROUP BY producto
+            ) ult ON c.producto = ult.producto AND c.fecha = ult.ultima_fecha
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error al obtener últimas compras:', err);
+        res.status(500).send('Error al obtener últimas compras');
+    }
+});
