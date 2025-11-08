@@ -186,17 +186,16 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
 
     const margenX = 10;
     const margenY = 10;
-    const anchoCol = 95; // mitad de la hoja A4 menos margen
+    const anchoCol = 95;
     const altoPagina = 280;
 
-    pdf.setFontSize(14);
+    pdf.setFontSize(16);
     pdf.text('Productos con Bajo Stock (visibles)', margenX, margenY);
-    pdf.setFontSize(10);
+    pdf.setFontSize(11);
 
     let x = margenX;
     let y = margenY + 10;
 
-    // función auxiliar para cambiar color por nivel de stock
     function setColorPorStock(nivel) {
         if (nivel === '0') pdf.setTextColor(211, 47, 47);     // rojo
         else if (nivel === '1') pdf.setTextColor(245, 124, 0); // naranja
@@ -204,32 +203,36 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
     }
 
     Object.keys(categorias).sort().forEach(cat => {
+        // --- Título de categoría ---
         pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(42, 93, 159);
+        pdf.setFontSize(13);
+        pdf.setTextColor(30, 70, 150); // azul fuerte
         pdf.text(cat, margenX, y);
+        pdf.setFontSize(11);
         pdf.setFont(undefined, 'normal');
         pdf.setTextColor(0, 0, 0);
-        y += 6;
+        y += 5; // más compacto (antes era 6-8)
 
         ['2', '1', '0'].forEach(nivel => {
             const lista = categorias[cat][nivel];
             if (lista.length === 0) return;
 
+            // Subtítulo de stock
             setColorPorStock(nivel);
             pdf.setFont(undefined, 'bold');
             pdf.text(`Stock = ${nivel}`, x, y);
             pdf.setTextColor(0, 0, 0);
             pdf.setFont(undefined, 'normal');
-            y += 5;
+            y += 4;
 
-            // Recorremos de a pares (2 columnas)
+            // Recorremos de a pares para 2 columnas
             for (let i = 0; i < lista.length; i += 2) {
                 const col1 = lista[i];
                 const col2 = lista[i + 1];
 
-                // Dibujar primera columna
                 let yInicio = y;
 
+                // --- Columna izquierda ---
                 pdf.setFont(undefined, 'bold');
                 const nombre1 = pdf.splitTextToSize(`${col1.nombre} (${col1.marca_nombre || ''})`, anchoCol - 20);
                 pdf.text(nombre1, x, y);
@@ -243,7 +246,7 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
                 ];
                 detalles1.forEach(line => { pdf.text(line, x + 4, y); y += 4; });
 
-                // Segunda columna (si existe)
+                // --- Columna derecha ---
                 if (col2) {
                     let y2 = yInicio;
                     let x2 = margenX + anchoCol;
@@ -261,31 +264,33 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
                     ];
                     detalles2.forEach(line => { pdf.text(line, x2 + 4, y2); y2 += 4; });
 
-                    // Calcular cuál columna fue más larga
+                    // Altura final de fila = la más alta de ambas columnas
                     y = Math.max(y, y2);
                 }
 
-                y += 6; // espacio entre filas de productos
+                y += 4; // espacio pequeño entre productos
 
-                // Control de salto de página
+                // Salto de página
                 if (y > altoPagina) {
                     pdf.addPage();
                     x = margenX;
                     y = margenY + 10;
                     pdf.setFont(undefined, 'bold');
-                    pdf.setTextColor(42, 93, 159);
-                    pdf.text(cat + ' (cont.)', x, y);
+                    pdf.setFontSize(13);
+                    pdf.setTextColor(30, 70, 150);
+                    pdf.text(cat + ' (cont.)', margenX, y);
+                    pdf.setFontSize(11);
                     pdf.setTextColor(0, 0, 0);
                     pdf.setFont(undefined, 'normal');
-                    y += 8;
+                    y += 6;
                 }
             }
 
-            y += 6; // espacio entre niveles de stock
+            y += 2; // espacio pequeño entre niveles de stock
         });
 
-        y += 8; // espacio entre categorías
-        if (y > altoPagina - 20) {
+        // --- Sin espacio extra entre categorías ---
+        if (y > altoPagina - 15) {
             pdf.addPage();
             x = margenX;
             y = margenY + 10;
@@ -294,6 +299,7 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
 
     pdf.save('bajo_stock_visibles.pdf');
 };
+
 
 
 
