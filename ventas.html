@@ -9,49 +9,55 @@
 </head>
 <body>
     <h1 class="titulos"> 📠 REGISTRAR VENTA </h1>
-    <form id="form-venta">
-        <label>BUSCAR </label>
-        <input type="text" id="buscarEanVenta" placeholder="🔍 Ingrese EAN o nombre del producto" autofocus>
-        <br>
-        <label>PRODUCTO </label>
-        <select id="productoSelect"></select>
-        <label>CANTIDAD </label>
-        <input type="number" id="cantidad" min="1" value="1">
-        <br>
-        
-        <label class="hidden">Fecha y hora de la venta:</label>
-        <input type="datetime-local" id="fechaVenta" class="hidden">
-        <br>    
-        <button type="button" id="agregarProducto">AGREGAR</button>
-    </form>
-    <h2>Detalle de la venta</h2>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Precio unitario</th>
-                <th>Subtotal</th>
-                <th>Quitar</th>
-            </tr>
-        </thead>
-        <tbody id="detalleVenta"></tbody>
-    </table>
-    <h3>Total: $<span id="totalVenta">0</span></h3>
+    <div class="contenedor-registro-ventas">
+        <div class="contenedor-form-venta">
+            <form id="form-venta">
+                <label>BUSCAR </label>
+                <input type="text" id="buscarEanVenta" placeholder="🔍 Ingrese EAN o nombre del producto" autofocus>
+                <br>
+                <label>PRODUCTO </label>
+                <select id="productoSelect"></select>
+                <label>CANTIDAD </label>
+                <input type="number" id="cantidad" min="1" value="1">
+                <br>
+                
+                <label class="hidden">Fecha y hora de la venta:</label>
+                <input type="datetime-local" id="fechaVenta" class="hidden">
+                <br>    
+                <button type="button" id="agregarProducto">AGREGAR</button>
+            </form>
+        </div>
+        <div class="contenedor-form-detalle-venta">
+            <h2>Detalle de la venta</h2>
+            <table >
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio unitario</th>
+                        <th>Subtotal</th>
+                        <th> </th>
+                    </tr>
+                </thead>
+                <tbody id="detalleVenta"></tbody>
+            </table>
+            <h3>TOTAL $<span id="totalVenta">0</span></h3>
 
-
-    <label for="medioPago">Medio de pago:</label>
-    <select id="medioPago">
-        <option value="efectivo">Efectivo</option>
-        <option value="transf">Transferencia</option>
-        <option value="qr">QR</option>
-        <option value="debito">Débito</option>
-        <option value="credito">Crédito</option>
-        <option value="otros">Otros</option> <!-- Nueva opción -->
-    </select>
-    <button id="registrarVenta">Registrar Venta</button>
-    <!-- Debajo del botón Registrar Venta -->
-    <div id="mensajeVenta" style="margin-top:10px;"></div>
+            <label for="medioPago">MEDIO DE PAGO</label>
+            <select id="medioPago">
+                <option value="efectivo">Efectivo</option>
+                <option value="transf">Transferencia</option>
+                <option value="qr">QR</option>
+                <option value="debito">Débito</option>
+                <option value="credito">Crédito</option>
+                <option value="otros">Otros</option> <!-- Nueva opción -->
+            </select>
+            <button id="registrarVenta">REGISTRAR VENTA</button>
+            <!-- Debajo del botón Registrar Venta -->
+            <div id="mensajeVenta" style="margin-top:10px;"></div>
+        </div>
+    </div>
+    
 <!-- LISTA DE VENTAS------------------------------------------- -->
     <h2>Ventas realizadas</h2>
 
