@@ -1,0 +1,112 @@
+/* Estilos generales ----------------------------------------------- */
+* {
+    background-color: rgb(0, 0, 0);
+    box-sizing: border-box;
+    font-family: "Segoe UI";
+    color:  rgb(255, 255, 255);
+}
+
+/* Estilos para los títulos ---------------------------------------- */
+
+.titulos {
+    font-size: 25px;
+    /* text-align: center; */
+    color: #f39ffe;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(255, 248, 248, 0.2);
+    margin: 20px;
+}
+
+/* Estilos para el formulario de busqueda de productos ------------ */
+
+#form-venta {
+    background: #312638; 
+    padding: 1px 20px 10PX 20px;
+    border-radius: 12px;
+    width: 500px;
+    margin: 20px;
+    box-shadow: 0px 0px 12px rgba(201, 102, 212, 0.3)
+}
+
+/* Etiquetas */
+#form-venta label {
+    color: #e0e0e0;
+    background-color: transparent;
+    font-weight: bold;
+    font-size: 18px;
+    display: block;
+    margin-bottom: 5px;
+    margin-top: 10px;
+}
+
+/* Inputs y selects */
+#form-venta input,
+#form-venta select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #333;
+    background: #111;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s ease;
+}
+
+#form-venta input:focus,
+#form-venta select:focus {
+    border-color: #912fd3;
+    box-shadow: 0px 0px 5px #912fd3;
+}
+
+/* Botón */
+#form-venta button {
+    width: 100%;
+    padding: 12px;
+    background: #912fd3;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+#form-venta button:hover {
+    background: #912fd3;
+}
+
+
+.btn-ingresar {
+    display: block;
+    margin: 0 auto;
+    color: #d32f2f;
+}
+
+#descripcion,
+label[for="descripcion"] {
+    display:none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#mensajeVenta {
+    padding: 8px 12px;
+    margin-top: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    display: none;
+}
+#mensajeVenta.error {
+    background: #d32f2f;
+    color: #fff;
+    border: 1px solid #b71c1c;
+}
+#mensajeVenta.success {
+    background: #388e3c;
+    color: #fff;
+    border: 1px solid #1b5e20;
+}

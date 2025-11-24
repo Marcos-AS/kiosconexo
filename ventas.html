@@ -3,23 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>Registrar Venta</title>
-    <link rel="stylesheet" href="styles.css">
+    <!-- estilos by ANITA -->
+    <link rel="stylesheet" href="../css/styles.css">
+    
 </head>
 <body>
-    <h1>Registrar Venta</h1>
+    <h1 class="titulos"> 📠 REGISTRAR VENTA </h1>
     <form id="form-venta">
-        <label>Buscar por EAN:</label>
-        <input type="text" id="buscarEanVenta" placeholder="Ingrese EAN o nombre" autofocus>
+        <label>BUSCAR </label>
+        <input type="text" id="buscarEanVenta" placeholder="🔍 Ingrese EAN o nombre del producto" autofocus>
         <br>
-        <label>Producto:</label>
+        <label>PRODUCTO </label>
         <select id="productoSelect"></select>
-        <label>Cantidad:</label>
+        <label>CANTIDAD </label>
         <input type="number" id="cantidad" min="1" value="1">
         <br>
+        
         <label class="hidden">Fecha y hora de la venta:</label>
         <input type="datetime-local" id="fechaVenta" class="hidden">
-        <br>
-        <button type="button" id="agregarProducto">Agregar</button>
+        <br>    
+        <button type="button" id="agregarProducto">AGREGAR</button>
     </form>
     <h2>Detalle de la venta</h2>
     <table border="1">
