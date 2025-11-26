@@ -4,16 +4,22 @@
 }
 
 body {
-    background-color: rgb(0, 0, 0);
-    background-image: url("/img/fondo.png");
-    background-size:contain;       
-    background-position: center;  
-    background-repeat: repeat; 
+    background-color: rgb(255, 255, 255);
     font-family: "Segoe UI";
-    color:  rgb(255, 255, 255);
+    color:  rgb(3, 3, 3);
 }
 
 /* Estilos para los títulos ---------------------------------------- */
+.contenedor-titulos {
+    width: 100%;
+    background: #312638;    
+    padding: 1px 0;
+    margin: 10px 0;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    border-radius: 8px;
+}
+
 
 .titulos {
     font-size: 25px;
@@ -109,6 +115,8 @@ body {
     background: #312638;
     border-radius: 12px;
     box-shadow: 0px 0px 12px rgba(201, 102, 212, 0.3);
+    color: white;
+    font-weight: bold;
 }
 
 /* Título */
@@ -120,12 +128,13 @@ body {
 
 /* Total */
 .contenedor-form-detalle-venta h3 {
-    font-size: 26px;
+    font-size: 40px;
     font-weight: bold;
-    color: #008e74;
+    color: #36008e;
     background-color: rgb(255, 241, 241);
     border-radius: 8px;
     padding: 0 0 0 8px;
+    margin: 16px 0 17px 0;
 }
 
 /* Tablas */
