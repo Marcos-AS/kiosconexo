@@ -141,9 +141,11 @@ app.post('/ventas', async (req, res) => {
     // Actualizar total en la venta
     let totalFinal = total;
     if ((medio_pago || 'efectivo') === 'debito') {
-      totalFinal = +(total * (1 - 0.0362)).toFixed(2);
+      totalFinal = +(total * (1 - 0.0424)).toFixed(2);
     } else if ((medio_pago || 'efectivo') === 'qr') {
       totalFinal = +(total * (1 - 0.0097)).toFixed(2);
+    } else if ((medio_pago || 'efectivo') === 'credito') {
+      totalFinal = +(total * (1 - 0.0531)).toFixed(2);
     }
     await connection.query(
       'UPDATE ventas SET total = ? WHERE id = ?',

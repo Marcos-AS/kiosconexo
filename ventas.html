@@ -300,11 +300,14 @@ function renderDetalle() {
     let totalConDescuento = total;
     const medioPago = document.getElementById('medioPago').value;
     if (medioPago === 'debito') {
-        totalConDescuento = +(total * (1 - 0.0362)).toFixed(2);
-        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 3,62% desc.)";
+        totalConDescuento = +(total * (1 - 0.0424)).toFixed(2);
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 4,24% desc.)";
     } else if (medioPago === 'qr') {
         totalConDescuento = +(total * (1 - 0.0097)).toFixed(2);
-        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 0,8% desc.)";
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 0,97% desc.)";
+    } else if (medioPago === 'credito') {
+        totalConDescuento = +(total * (1 - 0.0531)).toFixed(2);
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 5,31% desc.)";
     } else {
         document.getElementById('totalVenta').textContent = total.toFixed(2);
     }
@@ -364,7 +367,7 @@ async function cargarVentasRealizadas() {
         let totalBruto = totalNeto;
 
         if (v.medio_pago === 'debito') {
-            totalBruto = +(totalNeto / (1 - 0.0362));
+            totalBruto = +(totalNeto / (1 - 0.0424));
             comision = totalBruto - totalNeto;
         } else if (v.medio_pago === 'qr') {
             // let totalAux = totalBruto;
