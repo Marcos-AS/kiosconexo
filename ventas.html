@@ -33,6 +33,7 @@
                 <option value="efectivo">Efectivo</option>
                 <option value="transf">Transferencia</option>
                 <option value="qr">QR</option>
+                <option value="cuenta_dni">Cuenta DNI</option>
                 <option value="debito">Débito</option>
                 <option value="credito">Crédito</option>
                 <option value="otros">Otros</option> <!-- Nueva opción -->
@@ -705,11 +706,12 @@ async function cargarTotalesPorMedioPago() {
     });
 
     // Orden de medios de pago
-    const orden = ['efectivo', 'transf', 'qr', 'debito', 'credito', 'otros'];
+    const orden = ['efectivo', 'transf', 'qr', 'cuenta_dni', 'debito', 'credito', 'otros'];
     const nombres = {
         efectivo: 'Efectivo',
         transf: 'Transferencia',
         qr: 'QR',
+        cuenta_dni: 'Cuenta DNI',
         debito: 'Débito',
         credito: 'Crédito',
         otros: 'Otros'
