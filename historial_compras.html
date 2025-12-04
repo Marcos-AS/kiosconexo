@@ -12,7 +12,8 @@
 
 <script>
 async function cargarCompras() {
-    const res = await fetch('/compras');
+    // Pide todas las compras (quita el límite en el backend si ?all=true)
+    const res = await fetch('/compras?all=true');
     return await res.json();
 }
 
