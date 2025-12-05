@@ -301,7 +301,7 @@ function renderDetalle() {
     let totalConDescuento = total;
     const medioPago = document.getElementById('medioPago').value;
     if (medioPago === 'debito') {
-        totalConDescuento = +(total * (1 - 0.0424)).toFixed(2);
+        totalConDescuento = +(total * (1 - 0.0362)).toFixed(2);
         document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 4,24% desc.)";
     } else if (medioPago === 'qr') {
         totalConDescuento = +(total * (1 - 0.0097)).toFixed(2);
@@ -368,7 +368,7 @@ async function cargarVentasRealizadas() {
         let totalBruto = totalNeto;
 
         if (v.medio_pago === 'debito') {
-            totalBruto = +(totalNeto / (1 - 0.0424));
+            totalBruto = +(totalNeto / (1 - 0.0362));
             comision = totalBruto - totalNeto;
         } else if (v.medio_pago === 'qr') {
             // let totalAux = totalBruto;

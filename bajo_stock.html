@@ -164,11 +164,37 @@
             renderTabla();
         };
 
-document.getElementById('btn-exportar-pdf').onclick = function() {
+document.getElementById('btn-exportar-pdf').onclick = async function() {
     const visibles = productosVisibles.filter(p => p.visible);
     if (visibles.length === 0) {
         alert('No hay productos visibles para exportar.');
         return;
+    }
+
+    // Obtener resumen de caja y ventas SOLO para el PDF
+    let cajaHoy = 0;
+    let resumenVentasHoy = { total: 0, cantidad: 0 };
+    try {
+        const resCaja = await fetch('/caja');
+        if (resCaja.ok) {
+            const objCaja = await resCaja.json();
+            cajaHoy = objCaja.caja || 0;
+        }
+    } catch (e) {
+        console.error('Error al obtener caja para PDF:', e);
+    }
+
+    try {
+        const resVentas = await fetch('/ventas-por-dia');
+        if (resVentas.ok) {
+            const ventasPorDia = await resVentas.json();
+            const hoy = new Date().toISOString().slice(0,10);
+            const filaHoy = ventasPorDia.find(r => String(r.fecha).slice(0,10) === hoy);
+            resumenVentasHoy.total = filaHoy ? Number(filaHoy.total_dia) : 0;
+            resumenVentasHoy.cantidad = filaHoy ? Number(filaHoy.cantidad_ventas) : 0;
+        }
+    } catch (e) {
+        console.error('Error al obtener ventas para PDF:', e);
     }
 
     // Agrupar por categoría y stock
@@ -195,6 +221,16 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
 
     let x = margenX;
     let y = margenY + 10;
+
+    // Agregar resumen (solo en PDF)
+    pdf.setFontSize(12);
+    pdf.setFont(undefined, 'bold');
+    pdf.text(`Caja (hoy): $${Number(cajaHoy).toFixed(2)}`, x, y);
+    y += 6;
+    pdf.text(`Ventas (hoy): $${Number(resumenVentasHoy.total).toFixed(2)} — ${resumenVentasHoy.cantidad} ventas`, x, y);
+    y += 8;
+    pdf.setFont(undefined, 'normal');
+    pdf.setFontSize(11);
 
     function setColorPorStock(nivel) {
         if (nivel === '0') pdf.setTextColor(211, 47, 47);     // rojo
@@ -299,9 +335,6 @@ document.getElementById('btn-exportar-pdf').onclick = function() {
 
     pdf.save('bajo_stock_visibles.pdf');
 };
-
-
-
 
 
 
