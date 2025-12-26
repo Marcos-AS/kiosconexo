@@ -180,7 +180,7 @@ app.get('/ventas', (req, res) => {
             v.medio_pago,
             dv.producto, 
             p.nombre AS producto_nombre, 
-            cat.nombre AS categoria,  -- 👈 obtenemos el nombre de la categoría
+            cat.nombre AS categoria,
             dv.cantidad, 
             dv.precio_unitario,
             dv.compra_id, 
@@ -188,7 +188,7 @@ app.get('/ventas', (req, res) => {
         FROM ventas v
         JOIN detalle_venta dv ON dv.venta_id = v.id
         LEFT JOIN producto p ON dv.producto = p.ean
-        LEFT JOIN categoria cat ON p.categoriaId = cat.id  -- 👈 nuevo join
+        LEFT JOIN categoria cat ON p.categoriaId = cat.id
         LEFT JOIN compras c ON dv.compra_id = c.id
         WHERE 1=1
     `;
@@ -219,7 +219,7 @@ app.get('/ventas', (req, res) => {
     `;
 
     connection.query(sql, params, (err, results) => {
-        if (err) return res.status(500).send('Error al obtener ventas');
+        if (err) res.status(500).send(err.message);
 
         const ventas = [];
         let actual = null;
@@ -231,17 +231,17 @@ app.get('/ventas', (req, res) => {
                     fecha: row.fecha,
                     total: row.total,
                     medio_pago: row.medio_pago,
-                    detalle: []
+                    detalles: []
                 };
                 ventas.push(actual);
             }
-
-            actual.detalle.push({
+            actual.detalles.push({
                 producto: row.producto,
                 producto_nombre: row.producto_nombre,
-                categoria: row.categoria, // 👈 ahora llega el nombre real (ej: 'Gaseosa')
+                categoria: row.categoria,
                 cantidad: row.cantidad,
                 precio_unitario: row.precio_unitario,
+                compra_id: row.compra_id,
                 precio_compra: row.precio_compra
             });
         });

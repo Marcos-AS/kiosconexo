@@ -85,7 +85,7 @@
                 <th>% Ganancia</th> 
             </tr>
         </thead>
-        <tbody id="ventasRealizadas"></tbody>
+        <tbody id="ventasRealizadas" class="listaVentas"></tbody>
     </table>
 
     <h3>Total de ventas en el período: $<span id="totalVentasPeriodo">0</span></h3>
@@ -348,46 +348,68 @@ let estadoExpandidoGlobal = false; // Estado global para expandir/colapsar
 async function cargarVentasRealizadas() {
     const fecha = document.getElementById('filtroFecha').value;
     let url = '/ventas';
-    if (fecha) {
-        url += '?fecha=' + encodeURIComponent(fecha);
-    }
+    if (fecha) url += `?fecha=${fecha}`;
+
     const res = await fetch(url);
     const ventas = await res.json();
 
-    const tbody = document.getElementById('ventasRealizadas');
+    const tbody = document.querySelector('.listaVentas');
     tbody.innerHTML = '';
 
-    let totalPeriodo = 0;
+    let totalVentas = 0;
     let totalDiferencia = 0;
+    let totalCosto = 0;
     let totalComisiones = 0;
 
-    ventas.forEach((v, ventaIndex) => {
-        
-        let totalNeto = parseFloat(v.total) || 0;
-        let comision = 0;
-        let totalBruto = totalNeto;
+    ventas.forEach((venta, ventaIndex) => {
+        // 👈 Excluir ventas con medio_pago 'otros' del cálculo de ganancia
+        const esOtroMedioPago = venta.medio_pago === 'otros';
 
-        if (v.medio_pago === 'debito') {
-            totalBruto = +(totalNeto / (1 - 0.0362));
-            comision = totalBruto - totalNeto;
-        } else if (v.medio_pago === 'qr') {
-            // let totalAux = totalBruto;
-            totalBruto = +(totalNeto / (1 - 0.0097));
-            // if (totalBruto > totalAux) {
-            //     totalBruto = totalAux;
-            //     totalNeto -= totalNeto * 0.0097; 
-            // }
-            comision = totalBruto - totalNeto;
+        let ventaTotal = 0;
+        let costTotal = 0;
+
+        venta.detalles.forEach(detalle => {
+            const subtotal = detalle.cantidad * detalle.precio_unitario;
+            const costo = detalle.cantidad * (detalle.precio_compra || 0);
+            ventaTotal += subtotal;
+            costTotal += costo;
+        });
+
+        // 👈 Convertir a número explícitamente
+        totalVentas += Number(venta.total) || 0;
+        
+        // 👈 Solo suma la ganancia si NO es medio de pago 'otros'
+        if (!esOtroMedioPago) {
+            totalDiferencia += (ventaTotal - costTotal);
+            totalCosto += costTotal;
         }
+
+        // 👈 Calcular comisión según medio de pago
+        let comision = 0;
+        let totalBruto = ventaTotal;
+        let totalNeto = Number(venta.total) || 0;
+
+        if (venta.medio_pago === 'debito') {
+            comision = totalBruto * 0.0362;
+            totalNeto = totalBruto - comision;
+        } else if (venta.medio_pago === 'qr') {
+            comision = totalBruto * 0.0097;
+            totalNeto = totalBruto - comision;
+        } else if (venta.medio_pago === 'credito') {
+            comision = totalBruto * 0.0531;
+            totalNeto = totalBruto - comision;
+        } else {
+            totalNeto = totalBruto;
+        }
+
         totalComisiones += comision;
-        totalPeriodo += totalBruto;
 
         // Título de la venta: muestra el monto bruto y neto si hay comisión
         const trVenta = document.createElement('tr');
-        trVenta.style.backgroundColor = '#f0f0f0';
+        trVenta.style.backgroundColor = esOtroMedioPago ? '#fff3e0' : '#f0f0f0';
         trVenta.style.cursor = 'pointer';
         trVenta.innerHTML = `
-            <td>${new Date(v.fecha).toLocaleString()}</td>
+            <td>${new Date(venta.fecha).toLocaleString()}</td>
             <td>
                 ${comision > 0.001
                     ? `<span title="Antes de comisión">$${totalBruto.toFixed(2)}</span> <br>
@@ -395,7 +417,7 @@ async function cargarVentasRealizadas() {
                     : `$${totalNeto.toFixed(2)}`
                 }
             </td>
-            <td>${v.medio_pago || '-'}</td>
+            <td>${venta.medio_pago || '-'}${esOtroMedioPago ? ' <span style="color:#d32f2f;">(sin ganancia)</span>' : ''}</td>
             <td colspan="4"><strong>Ver productos ▼</strong></td>
         `;
         tbody.appendChild(trVenta);
@@ -418,14 +440,12 @@ async function cargarVentasRealizadas() {
             tbody.appendChild(trComision);
         }
 
-        v.detalle.forEach(d => {
+        venta.detalles.forEach(d => {
             const pv = parseFloat(d.precio_unitario) || 0;
             const pc = parseFloat(d.precio_compra) || 0;
             const cant = parseFloat(d.cantidad) || 0;
             const diferencia = (pv - pc) * cant;
             const porcentajeGanancia = pc ? ((pv - pc) / pc) * 100 : 0;
-
-            totalDiferencia += diferencia;
 
             // ✅ NUEVO: detectar si es bebida
             const categoriasBebidas = [
@@ -457,8 +477,8 @@ async function cargarVentasRealizadas() {
                 <td>${cant}</td>
                 <td>${pv.toFixed(2)}</td>
                 <td>${pc ? pc.toFixed(2) : '-'}</td>
-                <td>${pc ? diferencia.toFixed(2) : '-'}</td>
-                <td>${pc ? porcentajeGanancia.toFixed(2) + '%' : '-'}</td>
+                <td>${esOtroMedioPago ? '-' : (pc ? diferencia.toFixed(2) : '-')}</td>
+                <td>${esOtroMedioPago ? '-' : (pc ? porcentajeGanancia.toFixed(2) + '%' : '-')}</td>
             `;
             tbody.appendChild(trDetalle);
         });
@@ -466,6 +486,7 @@ async function cargarVentasRealizadas() {
 
         trVenta.addEventListener('click', () => {
             const filasDetalle = document.querySelectorAll(`.detalle-venta-${ventaIndex}`);
+            if (filasDetalle.length === 0) return; // Si no hay detalles, no hagas nada
             const mostrando = filasDetalle[0].style.display === '';
             filasDetalle.forEach(fila => {
                 fila.style.display = mostrando ? 'none' : '';
@@ -475,11 +496,11 @@ async function cargarVentasRealizadas() {
         });
     });
     totalDiferencia -= totalComisiones;
-    document.getElementById('totalVentasPeriodo').textContent = totalPeriodo.toFixed(2);
+    document.getElementById('totalVentasPeriodo').textContent = totalVentas.toFixed(2);
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
     let porcentajeGanancia = 0;
-    if (totalPeriodo > 0) {
-        porcentajeGanancia = (totalDiferencia / totalPeriodo) * 100;
+    if (totalCosto > 0) {
+        porcentajeGanancia = (totalDiferencia / totalCosto) * 100;
     }
     document.getElementById('porcentajeGanancia').textContent = porcentajeGanancia.toFixed(2);
 }
@@ -747,7 +768,7 @@ async function cargarTotalesPorMedioPago() {
                                         <td>$${parseFloat(v.total).toFixed(2)}</td>
                                         <td>
                                             <ul style="margin:0; padding-left:16px;">
-                                                ${v.detalle.map(d => `
+                                                ${v.detalles.map(d => `
                                                     <li>${d.producto_nombre || d.producto} x${d.cantidad}</li>
                                                 `).join('')}
                                             </ul>

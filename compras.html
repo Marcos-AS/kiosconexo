@@ -104,7 +104,7 @@
     }
 
 async function cargarCompras() {
-    const res = await fetch('/compras');
+    const res = await fetch('/compras?all=true');
     const compras = await res.json();
     const tbody = document.getElementById('comprasRecientes');
     tbody.innerHTML = '';
