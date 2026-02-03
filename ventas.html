@@ -306,6 +306,9 @@ function renderDetalle() {
     } else if (medioPago === 'qr') {
         totalConDescuento = +(total * (1 - 0.0097)).toFixed(2);
         document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 0,97% desc.)";
+    } else if (medioPago === 'cuenta_dni') {
+        totalConDescuento = +(total * (1 - 0.006)).toFixed(2);
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 0,6% desc.)";
     } else if (medioPago === 'credito') {
         totalConDescuento = +(total * (1 - 0.0531)).toFixed(2);
         document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 5,31% desc.)";
