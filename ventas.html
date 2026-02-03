@@ -395,6 +395,9 @@ async function cargarVentasRealizadas() {
         } else if (venta.medio_pago === 'qr') {
             comision = totalBruto * 0.0097;
             totalNeto = totalBruto - comision;
+        } else if (venta.medio_pago === 'cuenta_dni') {
+            comision = totalBruto * 0.006;
+            totalNeto = totalBruto - comision;
         } else if (venta.medio_pago === 'credito') {
             comision = totalBruto * 0.0531;
             totalNeto = totalBruto - comision;
