@@ -348,4 +348,93 @@ app.get('/productos-precios', async (req, res) => {
     }
 });
 
+app.get('/stock-seccion/:seccion', async (req, res) => {
+    const { seccion } = req.params;
+    let categorias = [];
+    let marcaCondicion = '';
+    let params = [];
+    
+    if (seccion === 'heladera-blanca') {
+        categorias = ['jugo', 'cerveza', 'agua', 'energizante', 'gaseosa', 'pebete', 'hamburguesa'];
+        marcaCondicion = 'AND m.nombre != ?';
+        params = [...categorias, 'Coca Cola'];
+    } else if (seccion === 'heladera-coca-cola') {
+        categorias = ['jugo', 'cerveza', 'agua', 'agua saborizada', 'agua tónica', 'energizante', 'gaseosa', 'pebete', 'hamburguesa'];
+        marcaCondicion = 'AND m.nombre = ?';
+        params = [...categorias, 'Coca Cola'];
+    } else if (seccion === 'mostrador-golosinas') {
+        categorias = ['chicles', 'pastillas', 'alfajor', 'barra de cereal', 'turrón'];
+        marcaCondicion = '';
+        params = categorias;
+    } else {
+        return res.status(400).send('Sección no válida');
+    }
+
+    try {
+        const placeholders = categorias.map(() => '?').join(',');
+
+        const sql = `
+            SELECT 
+                p.ean,
+                p.nombre,
+                p.stock,
+                p.precio_venta,
+                c.nombre AS categoria,
+                m.nombre AS marca
+            FROM producto p
+            JOIN categoria c ON p.categoriaId = c.id
+            JOIN marca m ON p.marca = m.id
+            WHERE c.nombre IN (${placeholders})
+            ${marcaCondicion}
+            ORDER BY c.nombre, p.nombre
+        `;
+
+        const [productos] = await pool.query(sql, params);
+
+        // Obtenemos la última compra de cada producto con el proveedor
+        const [ultimasCompras] = await pool.query(`
+            SELECT 
+                c.producto AS ean,
+                c.precio_compra,
+                p.nombre AS proveedor_nombre
+            FROM compras c
+            JOIN proveedor p ON c.proveedor = p.id
+            WHERE (c.producto, c.fecha) IN (
+                SELECT producto, MAX(fecha)
+                FROM compras
+                GROUP BY producto
+            )
+        `);
+
+        // Crear mapa para acceso rápido
+        const mapaCompras = {};
+        ultimasCompras.forEach(row => {
+            mapaCompras[row.ean] = {
+                precio_compra: row.precio_compra,
+                proveedor_nombre: row.proveedor_nombre
+            };
+        });
+
+        // Combinar datos
+        const resultado = productos.map(prod => {
+            const infoCompra = mapaCompras[prod.ean] || {};
+            return {
+                ean: prod.ean,
+                nombre: prod.nombre,
+                stock: prod.stock,
+                precio_venta: prod.precio_venta,
+                categoria: prod.categoria,
+                marca: prod.marca,
+                precio_compra: infoCompra.precio_compra || null,
+                proveedor: infoCompra.proveedor_nombre || 'N/A'
+            };
+        });
+
+        res.json(resultado);
+    } catch (err) {
+        console.error('Error al obtener stock de sección:', err);
+        res.status(500).send('Error al obtener stock');
+    }
+});
+
 

@@ -52,24 +52,22 @@ app.get('/compras', (req, res) => {
 
 // Registrar una compra
 app.post('/compras', async (req, res) => {
-    const { proveedor, producto, cantidad, precio_compra, fecha_vencimiento, medio_pago, aumentar_stock } = req.body;
-    if (!proveedor || !producto || !cantidad || !precio_compra) {
+    const { proveedor, producto, cantidad, precio_compra, fecha_compra, fecha_vencimiento, medio_pago, aumentar_stock } = req.body;
+    if (!proveedor || !producto || !cantidad || !precio_compra || !fecha_compra) {
         return res.status(400).send('Faltan datos');
     }
-    const fecha = new Date();
 
     try {
         await pool.query(
             'INSERT INTO compras (fecha, proveedor, producto, cantidad, precio_compra, fecha_vencimiento) VALUES (?, ?, ?, ?, ?, ?)',
-            [fecha, proveedor, producto, cantidad, precio_compra, fecha_vencimiento || null]
+            [fecha_compra + ' 00:00:00', proveedor, producto, cantidad, precio_compra, fecha_vencimiento || null]
         );
 
         // Si el pago fue en efectivo, descuenta de caja
         if (medio_pago === 'efectivo') {
-            const fechaHoy = new Date().toISOString().split('T')[0];
             await pool.query(
                 'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
-                [-precio_compra * cantidad, fechaHoy]
+                [-precio_compra * cantidad, fecha_compra]
             );
         }
 

@@ -25,6 +25,9 @@
         <button type="button" id="btnSumar21">+21%</button>
         <button type="button" id="btnDividirPorCantidad">÷ Cantidad</button>
         <br>
+        <label>Fecha de compra:</label>
+        <input type="date" id="fechaCompra" required>
+        <br>
         <label>Fecha de vencimiento:</label>
         <input type="date" id="fechaVencimiento">
         <br>
@@ -270,11 +273,12 @@ document.getElementById('agregarCompra').onclick = async function() {
     const producto = document.getElementById('productoSelect').value;
     const cantidad = parseInt(document.getElementById('cantidad').value);
     const precioCompra = parseFloat(document.getElementById('precioCompra').value);
+    const fechaCompra = document.getElementById('fechaCompra').value;
     const fechaVencimiento = document.getElementById('fechaVencimiento').value; // NUEVO
     const medioPago = document.getElementById('medioPago').value;
     const aumentarStock = document.getElementById('aumentarStock').checked;
 
-    if (!proveedor || !producto || !cantidad || !precioCompra) {
+    if (!proveedor || !producto || !cantidad || !precioCompra || !fechaCompra) {
         alert('Completa todos los campos');
         return;
     }
@@ -291,6 +295,7 @@ document.getElementById('agregarCompra').onclick = async function() {
                 producto,
                 cantidad,
                 precio_compra: precioCompra,
+                fecha_compra: fechaCompra,
                 fecha_vencimiento: fechaVencimiento || null,
                 medio_pago: medioPago,
                 aumentar_stock: aumentarStock // <--- nuevo campo
@@ -326,6 +331,10 @@ document.getElementById('agregarCompra').onclick = async function() {
         if (precioGuardado) {
             document.getElementById('precioCompra').value = precioGuardado;
         }
+
+        // Establecer fecha actual por defecto
+        const hoy = new Date().toISOString().split('T')[0];
+        document.getElementById('fechaCompra').value = hoy;
     });
 
     cargarProveedores();
