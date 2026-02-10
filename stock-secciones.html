@@ -140,6 +140,36 @@
             color: #0066cc;
         }
 
+        @media print {
+            body {
+                background: white;
+            }
+            .container-seccion {
+                max-width: 100%;
+                padding: 10px;
+            }
+            .tabla-productos {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+            .tabla-productos thead {
+                background-color: #e0e0e0;
+                color: #333;
+            }
+            button {
+                display: none !important;
+            }
+            #selectorSeccion {
+                display: none !important;
+            }
+            .titulo-seccion {
+                page-break-after: avoid;
+            }
+            .tabla-productos tr {
+                page-break-inside: avoid;
+            }
+        }
+
         @media (max-width: 768px) {
             .tabla-productos {
                 font-size: 0.9rem;
@@ -160,13 +190,20 @@
     <div class="container-seccion">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1 class="titulo-seccion" style="margin: 0; flex: 1;">📦 <span id="nombreSeccion">Heladera Blanca</span></h1>
-            <div>
-                <label for="selectorSeccion" style="font-weight: 600; color: #333; margin-right: 10px;">Cambiar sección:</label>
-                <select id="selectorSeccion" style="padding: 10px; border: 2px solid #0066cc; border-radius: 4px; font-size: 1rem; cursor: pointer;">
-                    <option value="heladera-blanca">Heladera Blanca</option>
-                    <option value="heladera-coca-cola">Heladera Coca Cola</option>
-                    <option value="mostrador-golosinas">Mostrador Golosinas</option>
-                </select>
+            <div style="display: flex; gap: 15px; align-items: flex-end;">
+                <div>
+                    <label for="selectorSeccion" style="font-weight: 600; color: #333; margin-right: 10px;">Cambiar sección:</label>
+                    <select id="selectorSeccion" style="padding: 10px; border: 2px solid #0066cc; border-radius: 4px; font-size: 1rem; cursor: pointer;">
+                        <option value="heladera-blanca">Heladera Blanca</option>
+                        <option value="heladera-coca-cola">Heladera Coca Cola</option>
+                        <option value="mostrador-golosinas">Mostrador Golosinas</option>
+                        <option value="mostrador-chocolates">Mostrador Chocolates</option>
+                        <option value="isla-galletas">Isla Galletas</option>
+                        <option value="estanteria-snacks">Estantería Snacks</option>
+                        <option value="cigarrillos">Cigarrillos</option>
+                    </select>
+                </div>
+                <button onclick="imprimirPDF()" style="padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">🖨️ Imprimir PDF</button>
             </div>
         </div>
         
@@ -185,6 +222,14 @@
                     <label for="filtroProveedor" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Lugar de Compra:</label>
                     <select id="filtroProveedor" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">
                         <option value="">Todos los proveedores</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="ordenStock" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">Ordenar por:</label>
+                    <select id="ordenStock" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">
+                        <option value="original">Sin ordenamiento</option>
+                        <option value="bajo-alto">Stock (Menor a Mayor)</option>
+                        <option value="alto-bajo">Stock (Mayor a Menor)</option>
                     </select>
                 </div>
                 <button onclick="limpiarFiltros()" style="padding: 8px 15px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Limpiar Filtros</button>
@@ -216,7 +261,11 @@
         const nombresSeccion = {
             'heladera-blanca': 'Heladera Blanca',
             'heladera-coca-cola': 'Heladera Coca Cola',
-            'mostrador-golosinas': 'Mostrador Golosinas'
+            'mostrador-golosinas': 'Mostrador Golosinas',
+            'mostrador-chocolates': 'Mostrador Chocolates',
+            'isla-galletas': 'Isla Galletas',
+            'estanteria-snacks': 'Estantería Snacks',
+            'cigarrillos': 'Cigarrillos'
         };
 
         async function cargarStockSeccion(seccion) {
@@ -350,6 +399,7 @@
         function aplicarFiltros() {
             const filtroCategoria = document.getElementById('filtroCategoria').value;
             const filtroProveedor = document.getElementById('filtroProveedor').value;
+            const ordenStock = document.getElementById('ordenStock').value;
 
             let productosFiltrados = productosOriginales;
 
@@ -361,13 +411,25 @@
                 productosFiltrados = productosFiltrados.filter(p => p.proveedor === filtroProveedor);
             }
 
+            // Aplicar ordenamiento
+            if (ordenStock === 'bajo-alto') {
+                productosFiltrados = [...productosFiltrados].sort((a, b) => a.stock - b.stock);
+            } else if (ordenStock === 'alto-bajo') {
+                productosFiltrados = [...productosFiltrados].sort((a, b) => b.stock - a.stock);
+            }
+
             mostrarProductos(productosFiltrados);
         }
 
         function limpiarFiltros() {
             document.getElementById('filtroCategoria').value = '';
             document.getElementById('filtroProveedor').value = '';
+            document.getElementById('ordenStock').value = 'original';
             mostrarProductos(productosOriginales);
+        }
+
+        function imprimirPDF() {
+            window.print();
         }
 
         // Cambiar de sección
@@ -383,6 +445,7 @@
             // Agregar listeners a los filtros
             document.getElementById('filtroCategoria').addEventListener('change', aplicarFiltros);
             document.getElementById('filtroProveedor').addEventListener('change', aplicarFiltros);
+            document.getElementById('ordenStock').addEventListener('change', aplicarFiltros);
         });
     </script>
 </body>

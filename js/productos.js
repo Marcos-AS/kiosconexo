@@ -366,6 +366,22 @@ app.get('/stock-seccion/:seccion', async (req, res) => {
         categorias = ['chicles', 'pastillas', 'alfajor', 'barra de cereal', 'turrón'];
         marcaCondicion = '';
         params = categorias;
+    } else if (seccion === 'mostrador-chocolates') {
+        categorias = ['chocolate', 'bombón', 'cubanito', 'bocadito', 'huevos de chocolate'];
+        marcaCondicion = '';
+        params = categorias;
+    } else if (seccion === 'isla-galletas') {
+        categorias = ['galletas', 'confites', 'obleas'];
+        marcaCondicion = 'AND m.nombre != ?';
+        params = [...categorias, 'Milka'];
+    } else if (seccion === 'estanteria-snacks') {
+        categorias = ['chisitos', 'nachos', 'papitas', 'snack salado', 'palitos salados', 'semillas', 'malvaviscos', 'azúcar', 'infusión', 'mayonesa', 'jugo en polvo', 'yerba', 'papel higiénico', 'servilletas'];
+        marcaCondicion = '';
+        params = categorias;
+    } else if (seccion === 'cigarrillos') {
+        categorias = ['cigarrillos', 'tabaco', 'encendedor', 'fósforos', 'preservativos'];
+        marcaCondicion = '';
+        params = categorias;
     } else {
         return res.status(400).send('Sección no válida');
     }
