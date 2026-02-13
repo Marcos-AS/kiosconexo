@@ -213,10 +213,12 @@ app.get('/ventas', (req, res) => {
         params.push(req.query.medio_pago);
     }
 
-    sql += `
-        ORDER BY v.fecha DESC, v.id DESC
-        LIMIT 500
-    `;
+    // Orden y límite: por defecto limitamos a 500 para consultas generales,
+    // pero si se pasa un rango (desde/hasta) o se solicita no_limit=1, no aplicamos LIMIT.
+    sql += ' ORDER BY v.fecha DESC, v.id DESC ';
+    if (!(req.query.desde && req.query.hasta) && req.query.no_limit !== '1') {
+      sql += ' LIMIT 500';
+    }
 
     connection.query(sql, params, (err, results) => {
         if (err) res.status(500).send(err.message);

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Historial de Ventas</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body { padding: 18px; }
+    .busqueda { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+    .resultado { margin-top:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:8px; border:1px solid #ddd; text-align:left; }
+    th { background:#f4f4f4; }
+    .small { font-size:0.9em; color:#555; }
+  </style>
+</head>
+<body>
+  <h1>Historial de Ventas por Producto</h1>
+
+  <div class="busqueda">
+    <label for="tipo">Buscar por:</label>
+    <select id="tipo">
+      <option value="ean">EAN</option>
+      <option value="nombre">Nombre</option>
+    </select>
+
+    <input id="termino" placeholder="Ingrese EAN o nombre de producto" style="flex:1" />
+    <button id="buscar">Buscar</button>
+    <button id="limpiar">Limpiar</button>
+  </div>
+
+  <div id="mensaje" class="small"></div>
+
+  <div class="resultado">
+    <table id="tabla-resultados">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Venta ID</th>
+          <th>Medio Pago</th>
+          <th>Total Venta</th>
+          <th>Producto EAN</th>
+          <th>Nombre Producto</th>
+          <th>Categoria</th>
+          <th>Cantidad</th>
+          <th>Precio Unit.</th>
+          <th>Compra ID</th>
+          <th>Precio Compra</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const buscarBtn = document.getElementById('buscar');
+    const limpiarBtn = document.getElementById('limpiar');
+    const terminoInput = document.getElementById('termino');
+    const tipoSelect = document.getElementById('tipo');
+    const mensaje = document.getElementById('mensaje');
+    const tbody = document.querySelector('#tabla-resultados tbody');
+
+    function renderResultados(ventas, filtroTipo, termino) {
+      tbody.innerHTML = '';
+      if (!ventas.length) {
+        mensaje.textContent = 'No se encontraron ventas.';
+        return;
+      }
+      mensaje.textContent = '';
+
+      // Para cada venta, agregar las filas por cada detalle que coincida
+      ventas.forEach(v => {
+        v.detalles.forEach(d => {
+          const tr = document.createElement('tr');
+          const fecha = new Date(v.fecha).toLocaleString();
+          tr.innerHTML = `
+            <td>${fecha}</td>
+            <td>${v.venta_id}</td>
+            <td>${v.medio_pago || ''}</td>
+            <td>${Number(v.total).toFixed(2)}</td>
+            <td>${d.producto || ''}</td>
+            <td>${d.producto_nombre || ''}</td>
+            <td>${d.categoria || ''}</td>
+            <td>${d.cantidad}</td>
+            <td>${Number(d.precio_unitario).toFixed(2)}</td>
+            <td>${d.compra_id || ''}</td>
+            <td>${d.precio_compra != null ? Number(d.precio_compra).toFixed(2) : ''}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+    }
+
+    async function buscar() {
+      const termino = terminoInput.value.trim();
+      if (!termino) {
+        mensaje.textContent = 'Ingrese un término de búsqueda.';
+        return;
+      }
+
+      mensaje.textContent = 'Buscando...';
+      tbody.innerHTML = '';
+
+      try {
+        const res = await fetch('/ventas?no_limit=1');
+        if (!res.ok) throw new Error('Error al consultar ventas');
+        const ventas = await res.json();
+
+        const filtroTipo = tipoSelect.value; // 'ean' o 'nombre'
+        const terminoLower = termino.toLowerCase();
+
+        // Filtrar ventas que tengan al menos un detalle coincidente
+        const ventasFiltradas = ventas.map(v => {
+          const detallesCoincidentes = v.detalles.filter(d => {
+            if (filtroTipo === 'ean') {
+              return String(d.producto || '').toLowerCase() === terminoLower;
+            } else {
+              return String(d.producto_nombre || '').toLowerCase().includes(terminoLower);
+            }
+          });
+          return {...v, detalles: detallesCoincidentes};
+        }).filter(v => v.detalles && v.detalles.length > 0);
+
+        renderResultados(ventasFiltradas, filtroTipo, termino);
+        if (ventasFiltradas.length === 0) mensaje.textContent = 'No se encontraron ventas para ese producto.';
+        else mensaje.textContent = `Se encontraron ${ventasFiltradas.reduce((acc,v)=> acc+v.detalles.length,0)} registros en ${ventasFiltradas.length} ventas.`;
+      } catch (err) {
+        console.error(err);
+        mensaje.textContent = 'Error al buscar ventas.';
+      }
+    }
+
+    buscarBtn.addEventListener('click', buscar);
+    limpiarBtn.addEventListener('click', () => {
+      terminoInput.value = '';
+      tbody.innerHTML = '';
+      mensaje.textContent = '';
+    });
+    terminoInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscar(); });
+  </script>
+</body>
+</html>

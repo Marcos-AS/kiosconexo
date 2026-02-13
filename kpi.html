@@ -57,6 +57,8 @@
     canvas {
       margin-top: 20px;
     }
+    .delta-pos { color: #0b8f3b; font-weight:700; }
+    .delta-neg { color: #d9534f; font-weight:700; }
   </style>
 </head>
 <body>
@@ -101,6 +103,19 @@
     </div>
   </section>
 
+  <section id="cantidad-por-mes">
+    <h2>Cantidad de Ventas por Mes</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr><th>Mes</th><th>Cantidad de Ventas</th></tr>
+        </thead>
+        <tbody id="tabla-cantidad-mes"></tbody>
+      </table>
+      <canvas id="grafico-cantidad-por-mes" height="150"></canvas>
+    </div>
+  </section>
+
   <section id="por-categoria">
   <h2>Totales por Categoría</h2>
   <div class="table-container">
@@ -124,6 +139,30 @@
       <tbody id="tabla-cantidad-dia"></tbody>
     </table>
     <canvas id="grafico-cantidad-dia" height="150"></canvas>
+  </div>
+</section>
+
+<!-- Nueva sección: Totales por día en un mes + diferencia día a día -->
+<section id="totales-dia-mes-diferencia">
+  <h2>Total Diario y Diferencia (por Mes)</h2>
+  <div class="table-container">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+      <label for="mes-selector">Mes:</label>
+      <input type="month" id="mes-selector" />
+      <button id="cargar-mes">Cargar</button>
+      <div id="mensaje-mes" class="small" style="margin-left:8px"></div>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Fecha</th><th>Total ($)</th><th>Diferencia (pv - pc - comisiones) ($)</th></tr>
+      </thead>
+      <tbody id="tabla-totales-diferencia"></tbody>
+    </table>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <canvas id="grafico-totales-mes" height="220" style="width:100%"></canvas>
+      <canvas id="grafico-diferencia-mes" height="220" style="width:100%"></canvas>
+    </div>
   </div>
 </section>
 
@@ -372,6 +411,66 @@ async function cargarCantidadPorDia() {
   }
 }
 
+async function cargarCantidadPorMes() {
+  const tbody = document.getElementById('tabla-cantidad-mes');
+  tbody.innerHTML = '<tr><td colspan="2">Cargando...</td></tr>';
+
+  try {
+    const res = await fetch(`${API_BASE}/ventas-por-mes`);
+    if (!res.ok) throw new Error('Error al obtener ventas por mes');
+    const datos = await res.json();
+
+    tbody.innerHTML = '';
+    if (datos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2">Sin datos</td></tr>';
+      return;
+    }
+
+    const labels = [];
+    const cantidades = [];
+
+    datos.forEach(fila => {
+      const periodo = fila.mes_nombre || `${fila.anio}-${fila.mes_numero}`;
+      const cantidad = fila.cantidad_ventas;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${periodo}</td><td>${cantidad}</td>`;
+      tbody.appendChild(tr);
+
+      labels.push(periodo);
+      cantidades.push(cantidad);
+    });
+
+    // Invertir arrays para que los meses más recientes queden a la derecha
+    labels.reverse();
+    cantidades.reverse();
+
+    // Crear gráfico
+    const ctx = document.getElementById('grafico-cantidad-por-mes').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Cantidad de Ventas',
+          data: cantidades,
+          backgroundColor: 'rgba(220, 53, 69, 0.6)',
+          borderColor: 'rgba(220, 53, 69, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="2">Error: ${err.message}</td></tr>`;
+    console.error(err);
+  }
+}
+
 async function cargarComparativaMes() {
   try {
     const res = await fetch(`${API_BASE}/ventas-por-dia`);
@@ -536,6 +635,163 @@ async function cargarComparativaDiaSemana() {
   }
 }
 
+// Sección: Totales diarios en un mes y diferencia día a día
+async function cargarTotalesYDiferencia() {
+  const mesInput = document.getElementById('mes-selector');
+  const cargarBtn = document.getElementById('cargar-mes');
+  const mensajeMes = document.getElementById('mensaje-mes');
+  const tbody = document.getElementById('tabla-totales-diferencia');
+  const ctxEl = document.getElementById('grafico-totales-diferencia');
+
+  function formatearMoneda(v) { return '$' + Number(v || 0).toFixed(2); }
+
+  async function cargar(mesValor) {
+    mensajeMes.textContent = 'Cargando...';
+    tbody.innerHTML = '';
+      try {
+      // filtrar por mes (YYYY-MM)
+      const seleccionado = mesValor || mesInput.value;
+      if (!seleccionado) {
+        const hoy = new Date();
+        const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+        mesInput.value = `${hoy.getFullYear()}-${mm}`;
+      }
+      const mesKey = mesInput.value;
+
+      const totalsByDay = {};
+      const diffByDay = {};
+
+      // 1) Pedimos totales por día desde el endpoint dedicado para asegurar consistencia
+      const resTot = await fetch(`${API_BASE}/ventas-por-dia`);
+      if (!resTot.ok) throw new Error('Error al obtener totales por día');
+      const datosTot = await resTot.json();
+      datosTot.forEach(fila => {
+        const fechaRaw = (fila.fecha || '').split('T')[0];
+        const key = fechaRaw.slice(0,7);
+        if (key !== mesKey) return;
+        const day = parseInt(fechaRaw.split('-')[2], 10);
+        totalsByDay[day] = (totalsByDay[day] || 0) + (Number(fila.total_dia) || 0);
+      });
+
+      // 2) Pedimos ventas con detalle para calcular diferencia neta (pv-pc-comisiones)
+      // Usamos rango desde/hasta para traer solo el mes y evitar límites
+      const [anioStrTmp, mesStrTmp] = mesKey.split('-');
+      const diasEnMesTmp = new Date(Number(anioStrTmp), Number(mesStrTmp), 0).getDate();
+      const desde = `${mesKey}-01`;
+      const hasta = `${mesKey}-${String(diasEnMesTmp).padStart(2,'0')}`;
+      const resV = await fetch(`${API_BASE}/ventas?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}&no_limit=1`);
+      if (!resV.ok) throw new Error('Error al obtener ventas con detalle');
+      const ventas = await resV.json();
+
+      ventas.forEach(venta => {
+        const fechaRaw = (venta.fecha || '').split('T')[0];
+        const key = fechaRaw.slice(0,7);
+        if (key !== mesKey) return;
+        const day = parseInt(fechaRaw.split('-')[2], 10);
+
+        // Si es medio 'otros' no sumar diferencia ni comisiones
+        if (venta.medio_pago === 'otros') return;
+
+        // calcular diferencia por detalle: (precio_unitario - precio_compra) * cantidad
+        let sumaDiffVenta = 0;
+        let totalBrutoVenta = 0;
+        (venta.detalles || []).forEach(d => {
+          const pv = Number(d.precio_unitario) || 0;
+          const pc = Number(d.precio_compra) || 0;
+          const cant = Number(d.cantidad) || 0;
+          sumaDiffVenta += (pv - pc) * cant;
+          totalBrutoVenta += pv * cant;
+        });
+
+        // calcular comisión según medio de pago (mismas tasas que en ventas.html)
+        let tasa = 0;
+        if (venta.medio_pago === 'debito') tasa = 0.0362;
+        else if (venta.medio_pago === 'qr') tasa = 0.0097;
+        else if (venta.medio_pago === 'cuenta_dni') tasa = 0.006;
+        else if (venta.medio_pago === 'credito') tasa = 0.0531;
+
+        const comisionVenta = totalBrutoVenta * tasa;
+
+        // diferencia neta del día sumaDiffVenta menos la comisión
+        const netDiff = sumaDiffVenta - comisionVenta;
+        diffByDay[day] = (diffByDay[day] || 0) + netDiff;
+      });
+
+      const [anioStr, mesStr] = mesKey.split('-');
+      const anio = parseInt(anioStr, 10);
+      const mesNum = parseInt(mesStr, 10);
+      const diasEnMes = new Date(anio, mesNum, 0).getDate();
+
+      const labels = [];
+      const totals = [];
+      const diffs = [];
+
+      for (let d = 1; d <= diasEnMes; d++) {
+        const fecha = `${mesKey}-${String(d).padStart(2,'0')}`;
+        const total = totalsByDay[d] || 0;
+        const diff = diffByDay[d] || 0;
+        labels.push(String(d));
+        totals.push(total);
+        diffs.push(diff);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${fecha}</td>
+          <td>${formatearMoneda(total)}</td>
+          <td class="${diff >= 0 ? 'delta-pos' : 'delta-neg'}">${diff >= 0 ? '+' : ''}${formatearMoneda(diff)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      mensajeMes.textContent = '';
+
+      // Crear dos gráficos separados: uno para totales y otro para diferencia
+      const ctxTotalesEl = document.getElementById('grafico-totales-mes');
+      const ctxDiferenciaEl = document.getElementById('grafico-diferencia-mes');
+
+      if (ctxTotalesEl) {
+        const ctxT = ctxTotalesEl.getContext('2d');
+        if (ctxT) {
+          if (ctxT.chart) ctxT.chart.destroy();
+          ctxT.chart = new Chart(ctxT, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Total ($)', data: totals, backgroundColor: 'rgba(0,123,255,0.6)', borderColor: 'rgba(0,123,255,1)', borderWidth: 1 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+          });
+        }
+      }
+
+      if (ctxDiferenciaEl) {
+        const ctxD = ctxDiferenciaEl.getContext('2d');
+        if (ctxD) {
+          if (ctxD.chart) ctxD.chart.destroy();
+          ctxD.chart = new Chart(ctxD, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Diferencia ($)', data: diffs, backgroundColor: 'rgba(40,167,69,0.6)', borderColor: 'rgba(40,167,69,1)', borderWidth: 1 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+          });
+        }
+      }
+
+    } catch (err) {
+      console.error(err);
+      mensajeMes.textContent = 'Error al cargar datos.';
+      tbody.innerHTML = '';
+    }
+  }
+
+  // eventos
+  cargarBtn.addEventListener('click', () => cargar());
+  mesInput.addEventListener('change', () => cargar());
+
+  // cargar por defecto mes actual
+  const hoy = new Date();
+  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+  mesInput.value = `${hoy.getFullYear()}-${mm}`;
+  cargar(mesInput.value);
+}
+
+
 // Cargar comparativa día de la semana
 cargarComparativaDiaSemana();
 
@@ -547,6 +803,12 @@ cargarComparativaMes();
 
 // Cargar la nueva sección
 cargarCantidadPorDia();
+
+// Cargar cantidad de ventas por mes
+cargarCantidadPorMes();
+
+// Cargar sección: totales diarios y diferencia por mes
+cargarTotalesYDiferencia();
 
 
 
