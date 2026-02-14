@@ -204,6 +204,7 @@
                     </select>
                 </div>
                 <button onclick="imprimirPDF()" style="padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">🖨️ Imprimir PDF</button>
+                <button onclick="descargarPDFTodasSecciones()" style="padding: 10px 15px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">📋 Descargar Todas</button>
             </div>
         </div>
         
@@ -256,6 +257,7 @@
         </table>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         let productosOriginales = [];
         const nombresSeccion = {
@@ -426,6 +428,150 @@
             document.getElementById('filtroProveedor').value = '';
             document.getElementById('ordenStock').value = 'original';
             mostrarProductos(productosOriginales);
+        }
+
+        function imprimirPDF() {
+            window.print();
+        }
+
+        async function descargarPDFTodasSecciones() {
+            const seccionesInfo = [
+                { id: 'heladera-blanca', nombre: 'Heladera Blanca' },
+                { id: 'heladera-coca-cola', nombre: 'Heladera Coca Cola' },
+                { id: 'mostrador-golosinas', nombre: 'Mostrador Golosinas' },
+                { id: 'mostrador-chocolates', nombre: 'Mostrador Chocolates' },
+                { id: 'isla-galletas', nombre: 'Isla Galletas' },
+                { id: 'estanteria-snacks', nombre: 'Estantería Snacks' },
+                { id: 'cigarrillos', nombre: 'Cigarrillos' }
+            ];
+
+            // Crear un elemento div para contener todo el contenido
+            const contenedorPDF = document.createElement('div');
+            contenedorPDF.style.padding = '20px';
+            contenedorPDF.style.fontFamily = 'Arial, sans-serif';
+            contenedorPDF.style.backgroundColor = '#fff';
+
+            // Agregar título
+            const titulo = document.createElement('h1');
+            titulo.style.textAlign = 'center';
+            titulo.style.borderBottom = '3px solid #0066cc';
+            titulo.style.paddingBottom = '10px';
+            titulo.textContent = 'Stock de Todas las Secciones';
+            contenedorPDF.appendChild(titulo);
+
+            // Agregar fecha
+            const fecha = document.createElement('p');
+            fecha.style.textAlign = 'center';
+            fecha.style.color = '#666';
+            fecha.style.marginBottom = '30px';
+            fecha.textContent = `Generado el: ${new Date().toLocaleString('es-AR')}`;
+            contenedorPDF.appendChild(fecha);
+
+            // Cargar datos de cada sección
+            for (const seccion of seccionesInfo) {
+                try {
+                    const response = await fetch(`/stock-seccion/${seccion.id}`);
+                    if (!response.ok) continue;
+
+                    let productos = await response.json();
+                    productos = productos.filter(p => p.stock !== null && p.stock !== undefined);
+
+                    if (productos.length === 0) continue;
+
+                    // Ordenar productos por stock (menor a mayor)
+                    productos.sort((a, b) => a.stock - b.stock);
+
+                    // Crear encabezado de sección
+                    const encabezado = document.createElement('h2');
+                    encabezado.style.marginTop = '30px';
+                    encabezado.style.marginBottom = '15px';
+                    encabezado.style.color = '#0066cc';
+                    encabezado.style.borderBottom = '2px solid #0066cc';
+                    encabezado.style.paddingBottom = '10px';
+                    encabezado.textContent = '📦 ' + seccion.nombre;
+                    contenedorPDF.appendChild(encabezado);
+
+                    // Crear tabla
+                    const tabla = document.createElement('table');
+                    tabla.style.width = '100%';
+                    tabla.style.borderCollapse = 'collapse';
+                    tabla.style.marginBottom = '20px';
+                    tabla.style.fontSize = '12px';
+
+                    // Headers
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    headerRow.style.backgroundColor = '#0066cc';
+                    headerRow.style.color = 'white';
+
+                    const headers = ['Producto', 'Categoría', 'Marca', 'Stock', 'Precio Venta', 'Precio Compra', 'Lugar de Compra'];
+                    headers.forEach(h => {
+                        const th = document.createElement('th');
+                        th.style.padding = '10px';
+                        th.style.textAlign = 'left';
+                        th.style.borderBottom = '2px solid #0066cc';
+                        th.style.fontWeight = 'bold';
+                        th.textContent = h;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    tabla.appendChild(thead);
+
+                    // Body
+                    const tbody = document.createElement('tbody');
+                    productos.forEach((prod, idx) => {
+                        const row = document.createElement('tr');
+                        row.style.backgroundColor = idx % 2 === 0 ? '#fff' : '#f9f9f9';
+                        row.style.borderBottom = '1px solid #e0e0e0';
+
+                        let stockColor = '#155724'; // verde
+                        if (prod.stock < 3) {
+                            stockColor = '#d32f2f'; // rojo
+                        } else if (prod.stock < 5) {
+                            stockColor = '#856404'; // naranja
+                        }
+
+                        const cells = [
+                            prod.nombre,
+                            prod.categoria,
+                            prod.marca,
+                            prod.stock,
+                            `$${prod.precio_venta || 'N/A'}`,
+                            `$${prod.precio_compra && !isNaN(prod.precio_compra) ? parseFloat(prod.precio_compra).toFixed(2) : 'N/A'}`,
+                            prod.proveedor
+                        ];
+
+                        cells.forEach((cell, idx) => {
+                            const td = document.createElement('td');
+                            td.style.padding = '8px 10px';
+                            td.style.borderRight = '1px solid #e0e0e0';
+                            if (idx === 3) { // columna Stock
+                                td.style.fontWeight = 'bold';
+                                td.style.color = stockColor;
+                            }
+                            td.textContent = cell;
+                            row.appendChild(td);
+                        });
+                        tbody.appendChild(row);
+                    });
+                    tabla.appendChild(tbody);
+                    contenedorPDF.appendChild(tabla);
+
+                } catch (error) {
+                    console.error(`Error cargando sección ${seccion.id}:`, error);
+                }
+            }
+
+            // Generar PDF usando html2pdf
+            const opt = {
+                margin: 10,
+                filename: `stock-todas-secciones-${new Date().toISOString().slice(0, 10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+            };
+
+            html2pdf().set(opt).from(contenedorPDF).save();
         }
 
         function imprimirPDF() {
