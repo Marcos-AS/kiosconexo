@@ -1,15 +1,27 @@
 const { app, pool, connection } = require('./db');
 
+function getFechaLocal() {
+    // Obtiene la fecha en zona horaria Argentina (GMT-3)
+    const ahora = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    })
+    return formatter.format(ahora);    
+}
+
 app.post('/ventas', async (req, res) => {
-  const { productos, medio_pago } = req.body;
+  const { productos, medio_pago, fecha } = req.body;
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
     // Crear la venta y obtener el id
     const [ventaResult] = await connection.query(
-      'INSERT INTO ventas (fecha, medio_pago, total) VALUES (NOW(), ?, 0)',
-      [medio_pago || 'efectivo']
+      'INSERT INTO ventas (fecha, medio_pago, total) VALUES (?, ?, 0)',
+      [fecha, medio_pago || 'efectivo']
     );
     const ventaId = ventaResult.insertId;
 
@@ -154,10 +166,10 @@ app.post('/ventas', async (req, res) => {
 
     // Si el medio de pago es efectivo, suma al efectivo en caja
     if ((medio_pago || 'efectivo') === 'efectivo') {
-      const fechaHoy = new Date().toISOString().split('T')[0];
+      const fechaHoy = getFechaLocal();
       await connection.query(
-        'INSERT INTO caja (efectivo, fecha) VALUES (?, ?)',
-        [total, fechaHoy]
+        'INSERT INTO caja (efectivo, fecha, tipo) VALUES (?, ?, ?)',
+        [total, fechaHoy, 'VENTA']
       );
     }
 

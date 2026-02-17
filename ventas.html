@@ -93,6 +93,11 @@
     <h3>Porcentaje de ganancia: <span id="porcentajeGanancia">0</span>%</h3>
     <h3>Total en caja: $<span id="totalCaja">0</span></h3>
 
+    <div style="margin-top: 15px; margin-bottom: 15px;">
+        <button id="btnDiaAnterior" style="padding: 8px 15px; margin-right: 10px;">◀ Día anterior</button>
+        <button id="btnDiaSiguiente" style="padding: 8px 15px;">Día siguiente ▶</button>
+    </div>
+
     <label for="efectivoApertura">Efectivo inicial hoy:</label>
 <input type="number" id="efectivoApertura" min="0" value="0">
 <button id="btnAbrirCaja">Abrir caja</button>
@@ -350,9 +355,12 @@ let estadoExpandidoGlobal = false; // Estado global para expandir/colapsar
 
 async function cargarVentasRealizadas() {
     const fecha = document.getElementById('filtroFecha').value;
+    console.log(fecha);
+    
     let url = '/ventas';
-    if (fecha) url += `?fecha=${fecha}`;
-
+    if (fecha) url += `?fecha=${encodeURIComponent(fecha)}`;
+    console.log(url);
+    
     const res = await fetch(url);
     const ventas = await res.json();
 
@@ -542,7 +550,9 @@ document.getElementById('btnAbrirCaja').onclick = async function() {
     });
     const msg = await res.text();
     alert(msg);
-    mostrarTotalCaja();
+    document.getElementById('efectivoApertura').value = 0;
+    await mostrarTotalCaja();
+    await verificarCajaAbiertaHoy();
 };
 
 document.getElementById('btnRetirarCaja').onclick = async function() {
@@ -559,7 +569,7 @@ document.getElementById('btnRetirarCaja').onclick = async function() {
     const msg = await res.text();
     alert(msg);
     document.getElementById('retiroCaja').value = 0;
-    mostrarTotalCaja();
+    await mostrarTotalCaja();
 };
 
 document.getElementById('btnAgregarACaja').onclick = async function() {
@@ -576,11 +586,20 @@ document.getElementById('btnAgregarACaja').onclick = async function() {
     const msg = await res.text();
     alert(msg);
     document.getElementById('agregarACaja').value = 0;
-    mostrarTotalCaja();
+    await mostrarTotalCaja();
 };
 
 async function verificarCajaAbiertaHoy() {
-    const hoy = new Date().toISOString().split('T')[0];
+    // Obtiene la fecha actual en zona horaria Argentina (GMT-3)
+    const ahora = new Date();
+    const fechaArgentina = new Date(ahora.toLocaleString('es-AR', { 
+        timeZone: 'America/Argentina/Buenos_Aires' 
+    }));
+    const year = fechaArgentina.getFullYear();
+    const month = String(fechaArgentina.getMonth() + 1).padStart(2, '0');
+    const day = String(fechaArgentina.getDate()).padStart(2, '0');
+    const hoy = `${year}-${month}-${day}`;
+    
     const res = await fetch('/caja-abierta?fecha=' + hoy);
     const data = await res.json();
     if (data.abierta) {
@@ -599,22 +618,60 @@ async function cargarProductos() {
 }
 
 function getFechaLocal() {
+    // Obtiene la fecha en zona horaria Argentina (GMT-3)
     const ahora = new Date();
-    const year = ahora.getFullYear();
-    const month = String(ahora.getMonth() + 1).padStart(2, '0');
-    const day = String(ahora.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    })
+    return formatter.format(ahora);    
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function getFechaHoraArgentina() {
+    // Obtiene la fecha/hora actual en zona horaria Argentina de forma segura
+    const ahora = new Date();
+    
+    // Usar Intl.DateTimeFormat para obtener partes individuales
+    const formatter = new Intl.DateTimeFormat('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    
+    const parts = formatter.formatToParts(ahora);
+    const valores = {};
+    parts.forEach(part => {
+        if (part.type !== 'literal') {
+            valores[part.type] = part.value;
+        }
+    });
+    
+    return `${valores.year}-${valores.month}-${valores.day} ${valores.hour}:${valores.minute}:${valores.second}`;
+}
+
+
+document.addEventListener("DOMContentLoaded", async () => {
     const hoy = getFechaLocal();
-    document.getElementById("filtroFecha").value = hoy;
-    cargarVentasRealizadas();
-    verificarCajaAbiertaHoy();
-    cargarProductos();
-    cargarPromociones();
+    console.log(hoy);
+    
+    const inputFecha = document.getElementById("filtroFecha");
+    
+    inputFecha.value = hoy;
+
+    await cargarVentasRealizadasYMedios();
+    await verificarCajaAbiertaHoy();
+    await cargarProductos();
+    await cargarPromociones();
     setFechaActual();
 });
+
 
 
 // Modifica el registro de venta para enviar el medio de pago
@@ -630,8 +687,7 @@ document.getElementById('registrarVenta').onclick = async function() {
         mensajeDiv.style.display = 'block';
         return;
     }
-    const ahora = new Date();
-    const fechaVenta = ahora.toISOString().slice(0, 19).replace('T', ' ');
+    const fechaVenta = getFechaHoraArgentina();
     const medioPago = document.getElementById('medioPago').value;
 
     const { itemsPromo, productosRestantes } = aplicarPromocionesCombinadas(detalle);
@@ -681,7 +737,7 @@ document.getElementById('registrarVenta').onclick = async function() {
 
         detalle = [];
         renderDetalle();
-        cargarVentasRealizadas();
+        cargarVentasRealizadasYMedios();
         mostrarTotalCaja();
     } catch (e) {
         mensajeDiv.textContent = 'Error de red al registrar la venta';
@@ -692,29 +748,48 @@ document.getElementById('registrarVenta').onclick = async function() {
 
 
         function setFechaActual() {
+            // Obtiene la fecha/hora en zona horaria Argentina (GMT-3)
             const ahora = new Date();
-            const year = ahora.getFullYear();
-            const month = String(ahora.getMonth() + 1).padStart(2, '0');
-            const day = String(ahora.getDate()).padStart(2, '0');
-            const hours = String(ahora.getHours()).padStart(2, '0');
-            const minutes = String(ahora.getMinutes()).padStart(2, '0');
+            const fechaArgentina = new Date(ahora.toLocaleString('es-AR', { 
+                timeZone: 'America/Argentina/Buenos_Aires' 
+            }));
+            const year = fechaArgentina.getFullYear();
+            const month = String(fechaArgentina.getMonth() + 1).padStart(2, '0');
+            const day = String(fechaArgentina.getDate()).padStart(2, '0');
+            const hours = String(fechaArgentina.getHours()).padStart(2, '0');
+            const minutes = String(fechaArgentina.getMinutes()).padStart(2, '0');
             // Formato: yyyy-MM-ddTHH:mm
             const local = `${year}-${month}-${day}T${hours}:${minutes}`;
             document.getElementById('fechaVenta').value = local;
         }
-        setFechaActual();
 
-        document.getElementById('btnFiltrarFecha').onclick = cargarVentasRealizadas;
+        document.getElementById('btnFiltrarFecha').onclick = cargarVentasRealizadasYMedios;
         document.getElementById('btnLimpiarFecha').onclick = function() {
-            document.getElementById('filtroFecha').value = '';
-            cargarVentasRealizadas();
+            const hoy = getFechaLocal();
+            document.getElementById('filtroFecha').value = hoy;
+            cargarVentasRealizadasYMedios();
+        };
+        document.getElementById('btnDiaAnterior').onclick = function() {
+            const fechaActual = document.getElementById('filtroFecha').value;
+            if (!fechaActual) return;
+            const fecha = new Date(fechaActual + 'T00:00:00');
+            fecha.setDate(fecha.getDate() - 1);
+            const nuevaFecha = fecha.toISOString().split('T')[0];
+            document.getElementById('filtroFecha').value = nuevaFecha;
+            cargarVentasRealizadasYMedios();
         };
 
-        document.addEventListener("DOMContentLoaded", () => {
-          const hoy = new Date().toISOString().split("T")[0];
-          document.getElementById("filtroFecha").value = hoy;
-          cargarVentasRealizadas(); // ya carga filtrado a hoy
-        });
+        document.getElementById('btnDiaSiguiente').onclick = function() {
+            const fechaActual = document.getElementById('filtroFecha').value;
+            if (!fechaActual) return;
+            const fecha = new Date(fechaActual + 'T00:00:00');
+            fecha.setDate(fecha.getDate() + 1);
+            const nuevaFecha = fecha.toISOString().split('T')[0];
+            document.getElementById('filtroFecha').value = nuevaFecha;
+            cargarVentasRealizadasYMedios();
+        };
+
+        setFechaActual();
 
 async function cargarTotalesPorMedioPago() {
     const fecha = document.getElementById('filtroFecha').value;
@@ -809,18 +884,6 @@ async function cargarVentasRealizadasYMedios() {
     await cargarVentasRealizadas();
     await cargarTotalesPorMedioPago();
 }
-
-// Reemplaza las llamadas a cargarVentasRealizadas por cargarVentasRealizadasYMedios
-document.getElementById('btnFiltrarFecha').onclick = cargarVentasRealizadasYMedios;
-document.getElementById('btnLimpiarFecha').onclick = function() {
-    document.getElementById('filtroFecha').value = '';
-    cargarVentasRealizadasYMedios();
-};
-document.addEventListener("DOMContentLoaded", () => {
-    const hoy = new Date().toISOString().split("T")[0];
-    document.getElementById("filtroFecha").value = hoy;
-    cargarVentasRealizadasYMedios();
-});
 
     </script>
 </body>
