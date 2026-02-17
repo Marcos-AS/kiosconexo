@@ -257,3 +257,30 @@ label[for="descripcion"] {
     color: #fff;
     border: 1px solid #1b5e20;
 }
+
+/* Estilos para tabla de ventas realizadas */
+.listaVentas {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.listaVentas thead {
+    background: #912fd3;
+    position: sticky;
+    top: 0;
+}
+
+.listaVentas th {
+    padding: 12px;
+    color: #fff;
+    font-weight: bold;
+    text-align: left;
+    border: 1px solid #7e5c83;
+}
+
+.listaVentas td {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+    vertical-align: middle;
+}

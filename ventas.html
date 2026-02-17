@@ -79,8 +79,8 @@
                 <th>Medio de pago</th>
                 <th>Producto</th>
                 <th>Cantidad</th>
-                <th>Precio Venta</th>
-                <th>Precio Compra</th>
+                <th>Precio venta</th>
+                <th>Precio compra</th>
                 <th>Ganancia</th>
                 <th>% Ganancia</th> 
             </tr>
@@ -432,7 +432,12 @@ async function cargarVentasRealizadas() {
                 }
             </td>
             <td>${venta.medio_pago || '-'}${esOtroMedioPago ? ' <span style="color:#d32f2f;">(sin ganancia)</span>' : ''}</td>
-            <td colspan="4"><strong>Ver productos ▼</strong></td>
+            <td style="font-weight: bold; cursor: pointer;"><strong>Ver productos ▼</strong></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
         `;
         tbody.appendChild(trVenta);
 
@@ -449,6 +454,7 @@ async function cargarVentasRealizadas() {
                 <td></td>
                 <td></td>
                 <td style="color:#b71c1c;">-$${comision.toFixed(2)}</td>
+                <td></td>
                 <td></td>
             `;
             tbody.appendChild(trComision);
@@ -487,6 +493,7 @@ async function cargarVentasRealizadas() {
             trDetalle.innerHTML = `
                 <td></td>
                 <td></td>
+                <td></td>
                 <td>${d.producto_nombre || d.producto}</td>
                 <td>${cant}</td>
                 <td>${pv.toFixed(2)}</td>
@@ -513,8 +520,8 @@ async function cargarVentasRealizadas() {
     document.getElementById('totalVentasPeriodo').textContent = totalVentas.toFixed(2);
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
     let porcentajeGanancia = 0;
-    if (totalCosto > 0) {
-        porcentajeGanancia = (totalDiferencia / totalCosto) * 100;
+    if (totalVentas > 0) {
+        porcentajeGanancia = (totalDiferencia / totalVentas) * 100;
     }
     document.getElementById('porcentajeGanancia').textContent = porcentajeGanancia.toFixed(2);
 }
