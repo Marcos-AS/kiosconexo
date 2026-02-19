@@ -115,6 +115,38 @@ app.post('/ventas', async (req, res) => {
 
     // Luego calcula el resto como venta normal (sin promociones)
     for (const { ean, cantidad, precio_unitario } of productosRestantes) {
+      // Soportar recarga: no verificar stock ni compra_id
+      if (ean === 'recarga') {
+        const subtotal = cantidad * (precio_unitario || 0);
+        total += subtotal;
+        // Asegurar que exista un producto 'recarga' para respetar la FK
+        const [prodRows] = await connection.query('SELECT ean FROM producto WHERE ean = ?', ['recarga']);
+        if (prodRows.length === 0) {
+          // Asegurar que exista al menos una categoría, crear 'Servicios' si no hay
+          const [cats] = await connection.query('SELECT id FROM categoria LIMIT 1');
+          let categoriaId;
+          if (cats.length === 0) {
+            const [catRes] = await connection.query('INSERT INTO categoria (nombre) VALUES (?)', ['Servicios']);
+            categoriaId = catRes.insertId;
+          } else {
+            categoriaId = cats[0].id;
+          }
+          await connection.query(
+            'INSERT INTO producto (ean, nombre, stock, precio_venta, categoriaId) VALUES (?, ?, ?, ?, ?)',
+            ['recarga', 'Recarga celular', 0, 0, categoriaId]
+          );
+        }
+        // Insertar detalle_venta apuntando al producto 'recarga'
+        await connection.query(
+          `INSERT INTO detalle_venta
+            (venta_id, producto, cantidad, precio_unitario, compra_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [ventaId, 'recarga', cantidad, precio_unitario || 0, null]
+        );
+        // No actualizar stock
+        continue;
+      }
+
       // Obtener stock del producto
       const [productosDB] = await connection.query(
         'SELECT stock FROM producto WHERE ean = ?',

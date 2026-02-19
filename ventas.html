@@ -51,6 +51,9 @@
                 <select id="productoSelect"></select>
                 <label>CANTIDAD </label>
                 <input type="number" id="cantidad" min="1" value="1">
+                <label id="labelMontoRecarga" style="display:none">MONTO RECARGA</label>
+                <input type="number" id="montoRecarga" min="1" value="100" style="display:none">
+                
                 <br>
                 
                 <label class="hidden">Fecha y hora de la venta:</label>
@@ -151,6 +154,13 @@ function renderSelectProductos(filtro = '') {
             option.textContent = `${p.nombre} (EAN: ${p.ean}, Stock: ${p.stock ?? 0}, Gramos: ${p.gramos ?? ''})`;
             select.appendChild(option);
         });
+    // Opción para recarga de celular (monto dinámico + teléfono)
+    const optionRecarga = document.createElement('option');
+    optionRecarga.value = 'recarga';
+    optionRecarga.textContent = 'Recarga celular (ingresar monto)';
+    select.appendChild(optionRecarga);
+    // Asegura que la UI de monto quede sincronizada con la selección actual
+    select.dispatchEvent(new Event('change'));
 }
 
 
@@ -179,6 +189,13 @@ function renderSelectProductos(filtro = '') {
         this.value = '';
         this.focus();
     }
+});
+
+// Mostrar/ocultar campos de recarga según selección
+document.getElementById('productoSelect').addEventListener('change', function() {
+    const mostrar = this.value === 'recarga';
+    document.getElementById('montoRecarga').style.display = mostrar ? '' : 'none';
+    document.getElementById('labelMontoRecarga').style.display = mostrar ? '' : 'none';
 });
 
 function aplicarPromocionesCombinadas(detalle) {
@@ -271,35 +288,45 @@ function renderDetalle() {
     });
 
     // Renderiza el resto de productos (promos individuales o normales)
-    productosRestantes.forEach((item, idx) => {
+    productosRestantes.forEach((item) => {
         const prod = productos.find(p => p.ean === item.ean);
-        let precio = prod.precio_venta ?? 0;
+        const prodName = prod ? prod.nombre : (item.ean === 'recarga' ? 'Recarga celular' : item.ean);
+        let precio = prod ? (prod.precio_venta ?? 0) : 0;
         let subtotal = precio * item.cantidad;
         let promoAplicada = false;
 
-        // Buscar promoción individual válida para el producto
-        const promo = promociones
-            .filter(p => p.producto_ean === item.ean)
-            .sort((a, b) => b.cantidad - a.cantidad)[0];
+        if (item.ean === 'recarga') {
+            precio = item.monto || 0;
+            subtotal = precio * item.cantidad;
+        } else {
+            // Buscar promoción individual válida para el producto
+            const promo = promociones
+                .filter(p => p.producto_ean === item.ean)
+                .sort((a, b) => b.cantidad - a.cantidad)[0];
 
-        if (promo && item.cantidad >= promo.cantidad) {
-            const precioUnitarioPromo = promo.precio_promocion / promo.cantidad;
-            subtotal = item.cantidad * precioUnitarioPromo;
-            precio = precioUnitarioPromo;
-            promoAplicada = true;
+            if (promo && item.cantidad >= promo.cantidad) {
+                const precioUnitarioPromo = promo.precio_promocion / promo.cantidad;
+                subtotal = item.cantidad * precioUnitarioPromo;
+                precio = precioUnitarioPromo;
+                promoAplicada = true;
+            }
         }
 
         total += subtotal;
         const tr = document.createElement('tr');
+
+        const qtyInput = `<input type="number" min="1" value="${item.cantidad}" style="width:60px" onchange="cambiarCantidadDetalleById('${item.id}', this.value)">`;
+
+        const precioHtml = item.ean === 'recarga'
+                        ? `<input type="number" min="1" step="0.01" value="${(item.monto || 0).toFixed(2)}" style="width:90px" onchange="cambiarMontoDetalleById('${item.id}', this.value)"> <span style="color:blue">(Recarga)</span>`
+            : `${precio.toFixed(2)}${promoAplicada ? ' <span style="color:green">(Promo)</span>' : ''}`;
+
         tr.innerHTML = `
-            <td>${prod.nombre}</td>
-            <td>
-                <input type="number" min="1" value="${item.cantidad}" style="width:60px"
-                    onchange="cambiarCantidadDetalle(${idx}, this.value)">
-            </td>
-            <td>${precio.toFixed(2)}${promoAplicada ? ' <span style="color:green">(Promo)</span>' : ''}</td>
+            <td>${prodName}</td>
+            <td>${qtyInput}</td>
+            <td>${precioHtml}</td>
             <td>${subtotal.toFixed(2)}</td>
-            <td><button onclick="quitarProducto(${idx})">Quitar</button></td>
+            <td><button onclick="quitarProducto('${item.id}')">Quitar</button></td>
         `;
         tbody.appendChild(tr);
     });
@@ -322,16 +349,33 @@ function renderDetalle() {
     }
 }
 
-        // Nueva función global para cambiar cantidad
-        window.cambiarCantidadDetalle = function(idx, nuevaCantidad) {
+        // Cambiar cantidad por id
+        window.cambiarCantidadDetalleById = function(id, nuevaCantidad) {
             nuevaCantidad = parseInt(nuevaCantidad);
             if (isNaN(nuevaCantidad) || nuevaCantidad < 1) return;
-            detalle[idx].cantidad = nuevaCantidad;
+            const index = detalle.findIndex(d => d.id === id);
+            if (index === -1) return;
+            detalle[index].cantidad = nuevaCantidad;
             renderDetalle();
         };
 
-        window.quitarProducto = function(idx) {
-            detalle.splice(idx, 1);
+        // Cambiar monto de recarga por id
+        window.cambiarMontoDetalleById = function(id, nuevoMonto) {
+            nuevoMonto = parseFloat(nuevoMonto);
+            if (isNaN(nuevoMonto) || nuevoMonto <= 0) return;
+            const index = detalle.findIndex(d => d.id === id);
+            if (index === -1) return;
+            detalle[index].monto = nuevoMonto;
+            renderDetalle();
+        };
+
+        
+
+        // Quitar producto por id
+        window.quitarProducto = function(id) {
+            const index = detalle.findIndex(d => d.id === id);
+            if (index === -1) return;
+            detalle.splice(index, 1);
             renderDetalle();
         }
 
@@ -339,15 +383,26 @@ function renderDetalle() {
             const ean = document.getElementById('productoSelect').value;
             const cantidad = parseInt(document.getElementById('cantidad').value);
             if (!ean || cantidad < 1) return;
-            const existente = detalle.find(d => d.ean === ean);
-            if (existente) {
-                existente.cantidad += cantidad;
+                if (ean === 'recarga') {
+                const monto = parseFloat(document.getElementById('montoRecarga').value) || 0;
+                if (monto <= 0) {
+                    alert('Ingrese un monto válido para la recarga');
+                    return;
+                }
+                // Agregar la recarga como un item especial con id único (sin teléfono)
+                detalle.push({ id: String(Date.now()) + '-' + Math.floor(Math.random()*1000), ean: 'recarga', cantidad: 1, monto });
             } else {
-                detalle.push({ ean, cantidad });
+                const existente = detalle.find(d => d.ean === ean && d.ean !== 'recarga');
+                if (existente) {
+                    existente.cantidad += cantidad;
+                } else {
+                    detalle.push({ id: String(Date.now()) + '-' + Math.floor(Math.random()*1000), ean, cantidad });
+                }
             }
             renderDetalle();
             document.getElementById('buscarEanVenta').value = '';
             document.getElementById('cantidad').value = 1;
+            document.getElementById('montoRecarga').value = 100;
             document.getElementById('buscarEanVenta').focus();
         };
 
@@ -708,7 +763,10 @@ document.getElementById('registrarVenta').onclick = async function() {
         ...productosRestantes
             .filter(item => item.cantidad > 0)
             .map(item => {
-                const prod = productos.find(p => p.ean === item.ean);
+                if (item.ean === 'recarga') {
+                    return { ean: 'recarga', cantidad: item.cantidad, precio_unitario: item.monto || 0 };
+                }
+                const prod = productos.find(p => p.ean === item.ean) || {};
                 let precio = prod.precio_venta ?? 0;
                 const promo = promociones
                     .filter(p => p.producto_ean === item.ean)
