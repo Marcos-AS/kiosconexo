@@ -38,9 +38,6 @@ app.get('/compras', (req, res) => {
         params.push(req.query.desde + ' 00:00:00', req.query.hasta + ' 00:00:00');
     }
     sql += ' ORDER BY c.fecha DESC';
-    if (req.query.all !== 'true') {
-        sql += ' LIMIT 1000';
-    }
     connection.query(sql, params, (err, results) => {
         if (err) {
             console.error('Error SQL en /compras:', err); // <-- Agrega esto
