@@ -91,3 +91,14 @@ delete from compras where id = 17;
 delete from producto where ean = "7891000405291";
 
 SHOW VARIABLES LIKE 'datadir';
+
+-- Tabla para almacenar la disposición de cigarrillos en mostradores
+-- CREATE TABLE disposicion_cigarrillos (
+--     id INT AUTO_INCREMENT PRIMARY KEY,
+--     mostrador_id VARCHAR(50) NOT NULL,
+--     celda_numero INT NOT NULL,
+--     producto_nombre VARCHAR(500) NOT NULL,
+--     posicion INT NOT NULL,
+--     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+--     UNIQUE KEY unique_producto_en_celda (mostrador_id, celda_numero, posicion)
+-- );

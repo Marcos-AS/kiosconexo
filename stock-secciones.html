@@ -206,6 +206,16 @@
             height: fit-content;
             position: sticky;
             top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .seccion-lista.oculta {
+            width: 0;
+            padding: 0;
+            padding-left: 0;
+            overflow: hidden;
+            box-shadow: none;
+            border: none;
         }
 
         .seccion-lista h3 {
@@ -280,7 +290,7 @@
             border: 2px dashed #ccc;
             border-radius: 6px;
             padding: 15px;
-            min-height: 160px;
+            min-height: 180px;
             transition: all 0.2s;
             display: flex;
             flex-direction: column;
@@ -288,7 +298,7 @@
             align-items: flex-start;
             font-size: 0.8rem;
             overflow-y: auto;
-            max-height: 200px;
+            max-height: 240px;
         }
 
         .celda:hover {
@@ -306,32 +316,56 @@
             background: #e3f2fd;
             border: 1px solid #0066cc;
             border-radius: 4px;
-            padding: 8px 10px;
-            margin-bottom: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
             width: 100%;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             flex-shrink: 0;
+            min-height: 70px;
         }
 
         .producto-en-celda .nombre {
             flex: 1;
-            font-weight: 600;
+            font-weight: 700;
             color: #0066cc;
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            overflow-y: auto;
             white-space: normal;
-            line-height: 1.2;
+            line-height: 1.4;
+            max-height: 50px;
+            padding-right: 6px;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .producto-en-celda .nombre::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .producto-en-celda .nombre::-webkit-scrollbar-track {
+            background: #e3f2fd;
+            border-radius: 2px;
+        }
+
+        .producto-en-celda .nombre::-webkit-scrollbar-thumb {
+            background: #0066cc;
+            border-radius: 2px;
+        }
+
+        .producto-en-celda .nombre::-webkit-scrollbar-thumb:hover {
+            background: #003d99;
         }
 
         .producto-en-celda .stock {
-            font-size: 0.72rem;
+            font-size: 0.75rem;
             color: #666;
-            margin-left: 6px;
             flex-shrink: 0;
+            align-self: flex-end;
+            margin-top: auto;
         }
 
         .producto-en-celda .stock.bajo {
@@ -340,15 +374,16 @@
         }
 
         .producto-en-celda .btn-remove {
-            margin-left: 6px;
             background: #f44336;
             color: white;
             border: none;
             border-radius: 2px;
-            padding: 3px 5px;
+            padding: 4px 6px;
             cursor: pointer;
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             flex-shrink: 0;
+            align-self: flex-end;
+            margin-top: 4px;
         }
 
         .producto-en-celda .btn-remove:hover {
@@ -500,8 +535,28 @@
             </div>
             <div class="salida-botones">
                 <button onclick="volverVistaTabla()" style="background-color: #666; color: white;">← Volver a Vista de Tabla</button>
+                <button onclick="toggleListaDisponibles()" style="background-color: #2196F3; color: white;">👁️ Mostrar/Ocultar Lista</button>
+                <button onclick="mostrarEditorDisposicion()" style="background-color: #ff9800; color: white;">✏️ Editar</button>
                 <button onclick="guardarDisposicion()" style="background-color: #4CAF50; color: white;">💾 Guardar Disposición</button>
+                <button onclick="descargarPDFDisposicion()" style="background-color: #9c27b0; color: white;">📥 Descargar PDF</button>
                 <button onclick="limpiarDisposicion()" style="background-color: #f44336; color: white;">🔄 Limpiar Todo</button>
+            </div>
+        </div>
+
+        <!-- Modal editor de disposición -->
+        <div id="modalEditor" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto; padding: 20px;">
+            <div style="background: white; max-width: 500px; margin: 20px auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                <h2 style="margin-top: 0; color: #333;">Editor de Disposición</h2>
+                <p style="color: #666; font-size: 0.9rem;">Selecciona una celda para ver y editar su contenido:</p>
+                
+                <div id="editorContenido" style="max-height: 500px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 15px;">
+                    <p style="text-align: center; color: #999;">Cargando...</p>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="cerrarEditorDisposicion()" style="padding: 10px 20px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Cerrar</button>
+                    <button onclick="guardarCambiosEditor()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Guardar Cambios</button>
+                </div>
             </div>
         </div>
     </div>
@@ -869,14 +924,21 @@
             const contenedor = document.getElementById('contenedorMostradores');
             contenedor.innerHTML = '';
 
-            // Cargar disposición guardada desde localStorage
-            const disposicionGuardada = localStorage.getItem('disposicionCigarrillos');
-            if (disposicionGuardada) {
-                cigarrillosEnRejilla = JSON.parse(disposicionGuardada);
-            } else {
-                cigarrillosEnRejilla = {};
-            }
+            // Cargar disposición guardada desde la API
+            fetch('/disposicion-cigarrillos')
+                .then(res => res.json())
+                .then(data => {
+                    cigarrillosEnRejilla = data;
+                    renderizarMostradores(contenedor);
+                })
+                .catch(err => {
+                    console.error('Error cargando disposición:', err);
+                    cigarrillosEnRejilla = {};
+                    renderizarMostradores(contenedor);
+                });
+        }
 
+        function renderizarMostradores(contenedor) {
             // Mostrador 1: 3 filas × 9 columnas
             crearMostrador(contenedor, 'Mostrador 1 (3×9)', 3, 9);
 
@@ -885,6 +947,17 @@
 
             // Actualizar lista de disponibles
             actualizarListaDisponibles();
+            
+            // Restaurar estado de la lista (si estaba oculta)
+            const listaOculta = localStorage.getItem('listaDisponiblesOculta') === 'true';
+            if (listaOculta) {
+                setTimeout(() => {
+                    const seccionLista = document.querySelector('.seccion-lista');
+                    if (seccionLista) {
+                        seccionLista.classList.add('oculta');
+                    }
+                }, 100);
+            }
         }
 
         function crearMostrador(contenedor, nombre, filas, columnas) {
@@ -1021,18 +1094,105 @@
             document.getElementById('tablaProductos').style.display = 'table';
         }
 
+        function toggleListaDisponibles() {
+            const seccionLista = document.querySelector('.seccion-lista');
+            seccionLista.classList.toggle('oculta');
+            
+            // Guardar preferencia en localStorage
+            const estaOculta = seccionLista.classList.contains('oculta');
+            localStorage.setItem('listaDisponiblesOculta', estaOculta);
+        }
+
         function guardarDisposicion() {
-            localStorage.setItem('disposicionCigarrillos', JSON.stringify(cigarrillosEnRejilla));
-            alert('✅ Disposición guardada correctamente');
+            fetch('/disposicion-cigarrillos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ disposicion: cigarrillosEnRejilla })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('✅ Disposición guardada correctamente en la base de datos');
+            })
+            .catch(err => {
+                console.error('Error guardando:', err);
+                alert('❌ Error al guardar la disposición');
+            });
         }
 
         function limpiarDisposicion() {
             if (confirm('¿Estás seguro? Esto eliminará toda la disposición.')) {
                 cigarrillosEnRejilla = {};
-                localStorage.removeItem('disposicionCigarrillos');
-                mostrarVistaRejillaCigarrillos(productosOriginalesRejilla);
+                guardarDisposicion();
                 alert('✅ Disposición limpiada');
             }
+        }
+
+        function mostrarEditorDisposicion() {
+            const modal = document.getElementById('modalEditor');
+            const editorContenido = document.getElementById('editorContenido');
+            
+            // Crear lista de celdas ocupadas
+            let html = '';
+            const mostradores = [
+                { nombre: 'Mostrador 1 (3×9)', celdas: 27 },
+                { nombre: 'Mostrador 2 (2×6)', celdas: 12 }
+            ];
+
+            mostradores.forEach(mostrador => {
+                const mostradorId = mostrador.nombre.replace(/\s+/g, '-').toLowerCase();
+                html += `<div style="margin-bottom: 20px;">
+                    <h4 style="margin: 10px 0; color: #0066cc; border-bottom: 2px solid #0066cc; padding-bottom: 5px;">${mostrador.nombre}</h4>`;
+                
+                for (let i = 0; i < mostrador.celdas; i++) {
+                    const celdaId = `${mostradorId}-celda-${i}`;
+                    const productos = cigarrillosEnRejilla[celdaId] || [];
+                    
+                    if (productos.length > 0) {
+                        html += `<div style="background: #f5f5f5; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 4px solid #0066cc;">
+                            <strong>Celda ${i}:</strong> ${productos.join(', ')}
+                            <button onclick="editarCelda('${celdaId}')" style="margin-left: 10px; padding: 5px 10px; background: #ff9800; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85rem;">Editar</button>
+                        </div>`;
+                    }
+                }
+                html += `</div>`;
+            });
+
+            if (html === '') {
+                html = '<p style="text-align: center; color: #999;">No hay cigarrillos ubicados aún.</p>';
+            }
+
+            editorContenido.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
+        function cerrarEditorDisposicion() {
+            document.getElementById('modalEditor').style.display = 'none';
+        }
+
+        function editarCelda(celdaId) {
+            const productos = cigarrillosEnRejilla[celdaId] || [];
+            const nuevoContenido = prompt(`Edita los productos en esta celda (separados por coma):\n\n${productos.join(', ')}`, productos.join(', '));
+            
+            if (nuevoContenido !== null) {
+                const nuevosProductos = nuevoContenido
+                    .split(',')
+                    .map(p => p.trim())
+                    .filter(p => p.length > 0);
+                
+                if (nuevosProductos.length === 0) {
+                    delete cigarrillosEnRejilla[celdaId];
+                } else {
+                    cigarrillosEnRejilla[celdaId] = nuevosProductos;
+                }
+                
+                // Recargar editor
+                mostrarEditorDisposicion();
+            }
+        }
+
+        function guardarCambiosEditor() {
+            guardarDisposicion();
+            cerrarEditorDisposicion();
         }
     </script>
 </body>

@@ -379,7 +379,7 @@ app.get('/stock-seccion/:seccion', async (req, res) => {
         marcaCondicion = '';
         params = categorias;
     } else if (seccion === 'cigarrillos') {
-        categorias = ['cigarrillos', 'tabaco', 'encendedor', 'fósforos', 'preservativos'];
+        categorias = ['cigarrillos', 'tabaco', 'encendedor', 'fósforos', 'preservativos', 'papelillo'];
         marcaCondicion = '';
         params = categorias;
     } else {
@@ -450,6 +450,70 @@ app.get('/stock-seccion/:seccion', async (req, res) => {
     } catch (err) {
         console.error('Error al obtener stock de sección:', err);
         res.status(500).send('Error al obtener stock');
+    }
+});
+
+// Obtener disposición de cigarrillos guardada
+app.get('/disposicion-cigarrillos', async (req, res) => {
+    try {
+        const [resultados] = await pool.query(`
+            SELECT mostrador_id, celda_numero, producto_nombre, posicion
+            FROM disposicion_cigarrillos
+            ORDER BY mostrador_id, celda_numero, posicion
+        `);
+
+        // Convertir resultados a estructura de objeto
+        const disposicion = {};
+        resultados.forEach(row => {
+            const celdaId = `${row.mostrador_id}-celda-${row.celda_numero}`;
+            if (!disposicion[celdaId]) {
+                disposicion[celdaId] = [];
+            }
+            disposicion[celdaId].push(row.producto_nombre);
+        });
+
+        res.json(disposicion);
+    } catch (err) {
+        console.error('Error al obtener disposición:', err);
+        res.status(500).send('Error al obtener disposición');
+    }
+});
+
+// Guardar disposición de cigarrillos
+app.post('/disposicion-cigarrillos', async (req, res) => {
+    const { disposicion } = req.body;
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // Limpiar disposición anterior
+        await connection.query('DELETE FROM disposicion_cigarrillos');
+
+        // Insertar nueva disposición
+        for (const [celdaId, productos] of Object.entries(disposicion)) {
+            // Parsear celdaId: formato "mostrador-id-celda-numero"
+            const partes = celdaId.split('-celda-');
+            const mostradorId = partes[0];
+            const celdaNumero = parseInt(partes[1]);
+
+            // Insertar cada producto en la celda
+            productos.forEach((productoNombre, index) => {
+                connection.query(
+                    'INSERT INTO disposicion_cigarrillos (mostrador_id, celda_numero, producto_nombre, posicion) VALUES (?, ?, ?, ?)',
+                    [mostradorId, celdaNumero, productoNombre, index]
+                );
+            });
+        }
+
+        await connection.commit();
+        res.json({ message: 'Disposición guardada correctamente' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Error al guardar disposición:', err);
+        res.status(500).send('Error al guardar disposición');
+    } finally {
+        connection.release();
     }
 });
 
