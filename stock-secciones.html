@@ -184,6 +184,238 @@
                 font-size: 1.5rem;
             }
         }
+
+        /* Estilos para vista de rejilla de cigarrillos */
+        .contenedor-rejillas {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .seccion-mostradores {
+            flex: 1;
+            min-width: 500px;
+        }
+
+        .seccion-lista {
+            width: 320px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .seccion-lista h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #ff9800;
+            padding-bottom: 10px;
+        }
+
+        .lista-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .item-disponible {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            padding: 14px 15px;
+            border-radius: 6px;
+            cursor: move;
+            font-size: 1rem;
+            font-weight: 600;
+            user-select: none;
+            transition: all 0.2s;
+            white-space: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+            min-height: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .item-disponible:hover {
+            background: #ffe0b2;
+            border-color: #ff6f00;
+        }
+
+        .item-disponible.dragging {
+            opacity: 0.5;
+            background: #fff9c4;
+        }
+
+        .mostrador {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .mostrador h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+        }
+
+        .rejilla {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .celda {
+            background: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            padding: 15px;
+            min-height: 160px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
+            font-size: 0.8rem;
+            overflow-y: auto;
+            max-height: 200px;
+        }
+
+        .celda:hover {
+            background: #eee;
+            border-color: #0066cc;
+        }
+
+        .celda.dragover {
+            background: #c8e6c9;
+            border-color: #4caf50;
+            border-style: solid;
+        }
+
+        .producto-en-celda {
+            background: #e3f2fd;
+            border: 1px solid #0066cc;
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            font-size: 0.78rem;
+            flex-shrink: 0;
+        }
+
+        .producto-en-celda .nombre {
+            flex: 1;
+            font-weight: 600;
+            color: #0066cc;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+            line-height: 1.2;
+        }
+
+        .producto-en-celda .stock {
+            font-size: 0.72rem;
+            color: #666;
+            margin-left: 6px;
+            flex-shrink: 0;
+        }
+
+        .producto-en-celda .stock.bajo {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        .producto-en-celda .btn-remove {
+            margin-left: 6px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 2px;
+            padding: 3px 5px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            flex-shrink: 0;
+        }
+
+        .producto-en-celda .btn-remove:hover {
+            background: #d32f2f;
+        }
+
+        .salida-botones {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .salida-botones button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1200px) {
+            .contenedor-rejillas {
+                flex-direction: column;
+            }
+
+            .seccion-lista {
+                width: 100%;
+                position: static;
+                height: auto;
+            }
+
+            .lista-items {
+                max-height: 300px;
+            }
+        }
+
+        .salida-botones {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .salida-botones button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1200px) {
+            .contenedor-rejillas {
+                flex-direction: column;
+            }
+
+            .seccion-lista {
+                width: 100%;
+                position: static;
+                height: auto;
+            }
+
+            .lista-items {
+                max-height: 300px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -240,6 +472,7 @@
         <div id="cargando" class="spinner" style="display: none;">Cargando datos...</div>
         <div id="error" class="error-message" style="display: none;"></div>
 
+        <!-- Vista de tabla (por defecto) -->
         <table class="tabla-productos" id="tablaProductos">
             <thead>
                 <tr>
@@ -255,6 +488,22 @@
             <tbody id="tbody-productos">
             </tbody>
         </table>
+
+        <!-- Vista de rejilla (solo para cigarrillos) -->
+        <div id="vistaRejilla" style="display: none;">
+            <div class="contenedor-rejillas">
+                <div class="seccion-mostradores" id="contenedorMostradores"></div>
+                <div class="seccion-lista">
+                    <h3>📍 Cigarrillos Disponibles</h3>
+                    <div class="lista-items" id="itemsDisponibles"></div>
+                </div>
+            </div>
+            <div class="salida-botones">
+                <button onclick="volverVistaTabla()" style="background-color: #666; color: white;">← Volver a Vista de Tabla</button>
+                <button onclick="guardarDisposicion()" style="background-color: #4CAF50; color: white;">💾 Guardar Disposición</button>
+                <button onclick="limpiarDisposicion()" style="background-color: #f44336; color: white;">🔄 Limpiar Todo</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -580,7 +829,15 @@
 
         // Cambiar de sección
         document.getElementById('selectorSeccion').addEventListener('change', function() {
-            cargarStockSeccion(this.value);
+            const seccion = this.value;
+            cargarStockSeccion(seccion);
+            
+            // Si es cigarrillos, mostrar vista de rejilla
+            if (seccion === 'cigarrillos') {
+                setTimeout(() => {
+                    mostrarVistaRejillaCigarrillos(productosOriginales);
+                }, 100);
+            }
         });
 
         // Cargar datos al abrir la página
@@ -593,6 +850,190 @@
             document.getElementById('filtroProveedor').addEventListener('change', aplicarFiltros);
             document.getElementById('ordenStock').addEventListener('change', aplicarFiltros);
         });
+
+        // ===== SISTEMA DE REJILLA PARA CIGARRILLOS =====
+
+        let cigarrillosEnRejilla = {}; // { celdaId: [producto1, producto2, ...] }
+        let draggedProduct = null;
+        let productosOriginalesRejilla = [];
+
+        function mostrarVistaRejillaCigarrillos(productos) {
+            document.getElementById('tablaProductos').style.display = 'none';
+            document.getElementById('vistaRejilla').style.display = 'block';
+
+            // Guardar productos para usarlos después
+            productosOriginalesRejilla = [...productos].sort((a, b) => 
+                a.nombre.toLowerCase().localeCompare(b.nombre.toLowerCase())
+            );
+
+            const contenedor = document.getElementById('contenedorMostradores');
+            contenedor.innerHTML = '';
+
+            // Cargar disposición guardada desde localStorage
+            const disposicionGuardada = localStorage.getItem('disposicionCigarrillos');
+            if (disposicionGuardada) {
+                cigarrillosEnRejilla = JSON.parse(disposicionGuardada);
+            } else {
+                cigarrillosEnRejilla = {};
+            }
+
+            // Mostrador 1: 3 filas × 9 columnas
+            crearMostrador(contenedor, 'Mostrador 1 (3×9)', 3, 9);
+
+            // Mostrador 2: 2 filas × 6 columnas
+            crearMostrador(contenedor, 'Mostrador 2 (2×6)', 2, 6);
+
+            // Actualizar lista de disponibles
+            actualizarListaDisponibles();
+        }
+
+        function crearMostrador(contenedor, nombre, filas, columnas) {
+            const mostrador = document.createElement('div');
+            mostrador.className = 'mostrador';
+            const mostradorId = nombre.replace(/\s+/g, '-').toLowerCase();
+
+            const titulo = document.createElement('h3');
+            titulo.textContent = nombre;
+            mostrador.appendChild(titulo);
+
+            const rejilla = document.createElement('div');
+            rejilla.className = 'rejilla';
+            rejilla.style.gridTemplateColumns = `repeat(${columnas}, 1fr)`;
+
+            // Crear celdas
+            for (let i = 0; i < filas * columnas; i++) {
+                const celdaId = `${mostradorId}-celda-${i}`;
+                const celda = document.createElement('div');
+                celda.className = 'celda';
+                celda.id = celdaId;
+
+                // Si hay productos guardados en esta celda
+                const productosGuardados = cigarrillosEnRejilla[celdaId] || [];
+                productosGuardados.forEach(prodNombre => {
+                    const producto = productosOriginalesRejilla.find(p => p.nombre === prodNombre);
+                    if (producto) {
+                        agregarProductoACelda(celda, producto, celdaId);
+                    }
+                });
+
+                // Eventos drag & drop
+                celda.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    celda.classList.add('dragover');
+                });
+
+                celda.addEventListener('dragleave', () => {
+                    celda.classList.remove('dragover');
+                });
+
+                celda.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    celda.classList.remove('dragover');
+
+                    if (draggedProduct) {
+                        // Agregar producto a la celda (sin reemplazar)
+                        agregarProductoACelda(celda, draggedProduct, celdaId);
+                        
+                        // Guardar en la estructura
+                        if (!cigarrillosEnRejilla[celdaId]) {
+                            cigarrillosEnRejilla[celdaId] = [];
+                        }
+                        if (!cigarrillosEnRejilla[celdaId].includes(draggedProduct.nombre)) {
+                            cigarrillosEnRejilla[celdaId].push(draggedProduct.nombre);
+                        }
+
+                        draggedProduct = null;
+                        actualizarListaDisponibles();
+                    }
+                });
+
+                rejilla.appendChild(celda);
+            }
+
+            mostrador.appendChild(rejilla);
+            contenedor.appendChild(mostrador);
+        }
+
+        function agregarProductoACelda(celda, producto, celdaId) {
+            const productoDiv = document.createElement('div');
+            productoDiv.className = 'producto-en-celda';
+
+            const nombre = document.createElement('span');
+            nombre.className = 'nombre';
+            nombre.textContent = producto.nombre.substring(0, 35);
+            nombre.title = producto.nombre;
+
+            const stock = document.createElement('span');
+            stock.className = 'stock' + (producto.stock < 3 ? ' bajo' : '');
+            stock.textContent = `${producto.stock}`;
+
+            const btnRemove = document.createElement('button');
+            btnRemove.className = 'btn-remove';
+            btnRemove.textContent = '✕';
+            btnRemove.onclick = (e) => {
+                e.stopPropagation();
+                productoDiv.remove();
+                // Remover del array
+                if (cigarrillosEnRejilla[celdaId]) {
+                    cigarrillosEnRejilla[celdaId] = cigarrillosEnRejilla[celdaId].filter(
+                        p => p !== producto.nombre
+                    );
+                    if (cigarrillosEnRejilla[celdaId].length === 0) {
+                        delete cigarrillosEnRejilla[celdaId];
+                    }
+                }
+                actualizarListaDisponibles();
+            };
+
+            productoDiv.appendChild(nombre);
+            productoDiv.appendChild(stock);
+            productoDiv.appendChild(btnRemove);
+            celda.appendChild(productoDiv);
+        }
+
+        function actualizarListaDisponibles() {
+            // Obtener cigarrillos ya ubicados
+            const ubicados = new Set();
+            Object.values(cigarrillosEnRejilla).forEach(arr => {
+                arr.forEach(p => ubicados.add(p));
+            });
+
+            // Cigarrillos que no están en rejilla (ya ordenados alfabéticamente)
+            const disponibles = productosOriginalesRejilla.filter(p => !ubicados.has(p.nombre));
+
+            const itemsDiv = document.getElementById('itemsDisponibles');
+            itemsDiv.innerHTML = disponibles.map(prod => `
+                <div class="item-disponible" draggable="true" 
+                     title="${prod.nombre}"
+                     ondragstart="draggedProduct = ${JSON.stringify(prod).replace(/"/g, '&quot;')}; this.classList.add('dragging');"
+                     ondragend="draggedProduct = null; this.classList.remove('dragging');">
+                    ${prod.nombre} <span style="font-size: 0.8rem; opacity: 0.7;">(${prod.stock})</span>
+                </div>
+            `).join('');
+
+            if (disponibles.length === 0) {
+                itemsDiv.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">✅ Todos ubicados</div>';
+            }
+        }
+
+        function volverVistaTabla() {
+            document.getElementById('vistaRejilla').style.display = 'none';
+            document.getElementById('tablaProductos').style.display = 'table';
+        }
+
+        function guardarDisposicion() {
+            localStorage.setItem('disposicionCigarrillos', JSON.stringify(cigarrillosEnRejilla));
+            alert('✅ Disposición guardada correctamente');
+        }
+
+        function limpiarDisposicion() {
+            if (confirm('¿Estás seguro? Esto eliminará toda la disposición.')) {
+                cigarrillosEnRejilla = {};
+                localStorage.removeItem('disposicionCigarrillos');
+                mostrarVistaRejillaCigarrillos(productosOriginalesRejilla);
+                alert('✅ Disposición limpiada');
+            }
+        }
     </script>
 </body>
 </html>
