@@ -433,12 +433,19 @@ async function cargarVentasRealizadas() {
 
         let ventaTotal = 0;
         let costTotal = 0;
+        // Venta sin recargas: usada para calcular la ganancia (no sumar recargas)
+        let ventaTotalSinRecarga = 0;
 
         venta.detalles.forEach(detalle => {
             const subtotal = detalle.cantidad * detalle.precio_unitario;
             const costo = detalle.cantidad * (detalle.precio_compra || 0);
+            // Venta total (incluye recargas) se usa para comisiones y montos mostrados
             ventaTotal += subtotal;
-            costTotal += costo;
+            // Para cálculo de ganancia, NO sumamos las recargas
+            if (detalle.producto !== 'recarga') {
+                ventaTotalSinRecarga += subtotal;
+                costTotal += costo;
+            }
         });
 
         // 👈 Convertir a número explícitamente
@@ -446,7 +453,8 @@ async function cargarVentasRealizadas() {
         
         // 👈 Solo suma la ganancia si NO es medio de pago 'otros'
         if (!esOtroMedioPago) {
-            totalDiferencia += (ventaTotal - costTotal);
+            // 👈 Excluir recargas de la ganancia (usar ventaTotalSinRecarga)
+            totalDiferencia += (ventaTotalSinRecarga - costTotal);
             totalCosto += costTotal;
         }
 
