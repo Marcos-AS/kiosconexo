@@ -25,11 +25,12 @@ app.put('/compras/:id/precio', async (req, res) => {
 // Listar compras recientes
 app.get('/compras', (req, res) => {
     let sql = `
-        SELECT c.fecha, p.id as proveedor_id, p.nombre as proveedor_nombre, pr.ean as producto_ean, pr.nombre as producto_nombre, pr.gramos, c.cantidad, c.precio_compra, c.id, c.fecha_vencimiento, cat.nombre as categoria_nombre
+        SELECT c.fecha, p.id as proveedor_id, p.nombre as proveedor_nombre, pr.ean as producto_ean, pr.nombre as producto_nombre, pr.gramos, c.cantidad, c.precio_compra, c.id, c.fecha_vencimiento, cat.nombre as categoria_nombre, m.nombre as marca_nombre
         FROM compras c
         JOIN proveedor p ON c.proveedor = p.id
         JOIN producto pr ON c.producto = pr.ean
         LEFT JOIN categoria cat ON pr.categoriaId = cat.id
+        LEFT JOIN marca m ON pr.marca = m.id
         WHERE 1=1
     `;
     const params = [];

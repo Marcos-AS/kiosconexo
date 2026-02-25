@@ -3,11 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <title>Historial</title>
+    <style>
+        .filtros {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .filtro-grupo {
+            margin-bottom: 15px;
+        }
+        .filtro-grupo label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .filtro-grupo input,
+        .filtro-grupo select {
+            padding: 8px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
 </head>
 <body>
     <h1>Historial de compras por producto</h1>
-    <label>Buscar producto:</label>
-    <input type="text" id="buscadorProducto" placeholder="Nombre o EAN">
+    <div class="filtros">
+        <div class="filtro-grupo">
+            <label>Buscar producto:</label>
+            <input type="text" id="buscadorProducto" placeholder="Nombre o EAN">
+        </div>
+        <div class="filtro-grupo">
+            <label>Categoría:</label>
+            <select id="filtroCategoria">
+                <option value="">Todas las categorías</option>
+            </select>
+        </div>
+        <div class="filtro-grupo">
+            <label>Marca:</label>
+            <select id="filtroMarca">
+                <option value="">Todas las marcas</option>
+            </select>
+        </div>
+    </div>
     <div id="comprasAgrupadas"></div>
 
 <script>
@@ -29,20 +68,69 @@ function agruparCompras(compras) {
     return agrupado;
 }
 
-function renderComprasAgrupadas(filtro = '') {
+function obtenerCategorias(compras) {
+    const categorias = new Set();
+    compras.forEach(c => {
+        if (c.categoria_nombre) categorias.add(c.categoria_nombre);
+    });
+    return Array.from(categorias).sort();
+}
+
+function obtenerMarcas(compras) {
+    const marcas = new Set();
+    compras.forEach(c => {
+        if (c.marca_nombre) marcas.add(c.marca_nombre);
+    });
+    return Array.from(marcas).sort();
+}
+
+function llenarSelectores() {
+    const categorias = obtenerCategorias(comprasGlobal);
+    const marcas = obtenerMarcas(comprasGlobal);
+
+    const selectCategoria = document.getElementById('filtroCategoria');
+    const selectMarca = document.getElementById('filtroMarca');
+
+    categorias.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        selectCategoria.appendChild(option);
+    });
+
+    marcas.forEach(marca => {
+        const option = document.createElement('option');
+        option.value = marca;
+        option.textContent = marca;
+        selectMarca.appendChild(option);
+    });
+}
+
+function renderComprasAgrupadas(filtro = '', categoria = '', marca = '') {
     const contenedor = document.getElementById('comprasAgrupadas');
     contenedor.innerHTML = '';
 
     Object.entries(agrupadoGlobal).forEach(([producto, lista]) => {
-        if (
-            !producto.toLowerCase().includes(filtro.toLowerCase()) &&
-            !lista.some(c => c.producto_nombre.toLowerCase().includes(filtro.toLowerCase()) || c.producto_ean?.includes(filtro))
-        ) return;
+        // Filtrar por búsqueda de producto
+        const coincideBusqueda = 
+            producto.toLowerCase().includes(filtro.toLowerCase()) ||
+            lista.some(c => c.producto_nombre.toLowerCase().includes(filtro.toLowerCase()) || c.producto_ean?.includes(filtro));
 
-        lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        if (!coincideBusqueda) return;
+
+        // Filtrar por categoría y marca
+        const listaFiltrada = lista.filter(c => {
+            const coincideCategoria = !categoria || c.categoria_nombre === categoria;
+            const coincideMarca = !marca || c.marca_nombre === marca;
+            return coincideCategoria && coincideMarca;
+        });
+
+        if (listaFiltrada.length === 0) return;
+
+        listaFiltrada.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
         // Verifica si hay algún valor de gramos en la lista
-        const mostrarGramos = lista.some(c => c.gramos !== null && c.gramos !== undefined && c.gramos !== '');
+        const mostrarGramos = listaFiltrada.some(c => c.gramos !== null && c.gramos !== undefined && c.gramos !== '');
 
         const div = document.createElement('div');
         div.style.marginBottom = '15px';
@@ -53,16 +141,20 @@ function renderComprasAgrupadas(filtro = '') {
                     <tr>
                         <th>Fecha</th>
                         <th>Proveedor</th>
+                        <th>Categoría</th>
+                        <th>Marca</th>
                         <th>Cantidad</th>
                         ${mostrarGramos ? '<th>Gramos</th>' : ''}
                         <th>Precio de compra</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${lista.map(c => `
+                    ${listaFiltrada.map(c => `
                         <tr>
                             <td>${c.fecha.split('T')[0]}</td>
                             <td>${c.proveedor_nombre}</td>
+                            <td>${c.categoria_nombre ?? '-'}</td>
+                            <td>${c.marca_nombre ?? '-'}</td>
                             <td>${c.cantidad}</td>
                             ${mostrarGramos ? `<td>${c.gramos ?? '-'}</td>` : ''}
                             <td>$${parseFloat(c.precio_compra).toFixed(2)}</td>
@@ -75,13 +167,22 @@ function renderComprasAgrupadas(filtro = '') {
     });
 }
 
-document.getElementById('buscadorProducto').addEventListener('input', function() {
-    renderComprasAgrupadas(this.value.trim());
-});
+function actualizarFiltros() {
+    const filtroProducto = document.getElementById('buscadorProducto').value.trim();
+    const filtroCategoria = document.getElementById('filtroCategoria').value;
+    const filtroMarca = document.getElementById('filtroMarca').value;
+    
+    renderComprasAgrupadas(filtroProducto, filtroCategoria, filtroMarca);
+}
+
+document.getElementById('buscadorProducto').addEventListener('input', actualizarFiltros);
+document.getElementById('filtroCategoria').addEventListener('change', actualizarFiltros);
+document.getElementById('filtroMarca').addEventListener('change', actualizarFiltros);
 
 window.addEventListener('DOMContentLoaded', async () => {
     comprasGlobal = await cargarCompras();
     agrupadoGlobal = agruparCompras(comprasGlobal);
+    llenarSelectores();
     renderComprasAgrupadas();
 });
 </script>
