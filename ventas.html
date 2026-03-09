@@ -881,7 +881,16 @@ async function cargarTotalesPorMedioPago() {
     ventas.forEach(v => {
         const medio = (v.medio_pago || 'efectivo').toLowerCase();        
         if (!medios[medio]) medios[medio] = { total: 0, ventas: [] };
-        medios[medio].total += parseFloat(v.total) || 0;
+        let totalVenta = parseFloat(v.total) || 0;
+        // Aplica comisión para mostrar el total neto
+        if (medio === 'debito') {
+            totalVenta = +(totalVenta * (1 - 0.0362)).toFixed(2);
+        } else if (medio === 'qr') {
+            totalVenta = +(totalVenta * (1 - 0.0097)).toFixed(2);
+        } else if (medio === 'cuenta_dni') {
+            totalVenta = +(totalVenta * (1 - 0.006)).toFixed(2);
+        }
+        medios[medio].total += totalVenta;
         medios[medio].ventas.push(v);
     });
 
@@ -900,7 +909,7 @@ async function cargarTotalesPorMedioPago() {
     const resumenDiv = document.getElementById('resumenMediosPago');
     resumenDiv.innerHTML = orden.map(medio => {
         const info = medios[medio];
-        const total = info ? info.total.toFixed(2) : '0.00';
+        const total = info ? info.total.toFixed(2) : '0.00'; // Total por medio de pago
         const ventas = info ? info.ventas : [];
         const id = `detalle-medio-${medio}`;
         return `
