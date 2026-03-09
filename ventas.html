@@ -426,7 +426,7 @@ async function cargarVentasRealizadas() {
     let totalDiferencia = 0;
     let totalCosto = 0;
     let totalComisiones = 0;
-
+    let totalRecargasGlobal = 0;
     ventas.forEach((venta, ventaIndex) => {
         // 👈 Excluir ventas con medio_pago 'otros' del cálculo de ganancia
         const esOtroMedioPago = venta.medio_pago === 'otros';
@@ -435,6 +435,7 @@ async function cargarVentasRealizadas() {
         let costTotal = 0;
         // Venta sin recargas: usada para calcular la ganancia (no sumar recargas)
         let ventaTotalSinRecarga = 0;
+        let totalRecargas = 0;
 
         venta.detalles.forEach(detalle => {
             const subtotal = detalle.cantidad * detalle.precio_unitario;
@@ -445,11 +446,14 @@ async function cargarVentasRealizadas() {
             if (detalle.producto !== 'recarga') {
                 ventaTotalSinRecarga += subtotal;
                 costTotal += costo;
+            } else {
+                totalRecargas += subtotal;
             }
         });
 
         // 👈 Convertir a número explícitamente
         totalVentas += Number(venta.total) || 0;
+        totalRecargasGlobal += totalRecargas;
         
         // 👈 Solo suma la ganancia si NO es medio de pago 'otros'
         if (!esOtroMedioPago) {
@@ -580,6 +584,7 @@ async function cargarVentasRealizadas() {
         });
     });
     totalDiferencia -= totalComisiones;
+    totalVentas -= totalRecargasGlobal; // Excluir recargas del total de ventas en el periodo
     document.getElementById('totalVentasPeriodo').textContent = totalVentas.toFixed(2);
     document.getElementById('totalDiferenciaPeriodo').textContent = totalDiferencia.toFixed(2);
     let porcentajeGanancia = 0;

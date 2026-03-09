@@ -334,8 +334,16 @@ app.get('/ventas-por-dia', async (req, res) => {
     const [rows] = await pool.query(`
       SELECT 
         DATE(fecha) AS fecha,
-        SUM(total) AS total_dia,
-        COUNT(id) AS cantidad_ventas
+          SUM(CASE WHEN id NOT IN (
+            SELECT v.id FROM ventas v
+            JOIN detalle_venta dv ON dv.venta_id = v.id
+            WHERE dv.producto = 'recarga'
+          ) THEN total ELSE 0 END) AS total_dia,
+          COUNT(CASE WHEN id NOT IN (
+            SELECT v.id FROM ventas v
+            JOIN detalle_venta dv ON dv.venta_id = v.id
+            WHERE dv.producto = 'recarga'
+          ) THEN id ELSE NULL END) AS cantidad_ventas
       FROM ventas
       GROUP BY DATE(fecha)
       ORDER BY fecha DESC
@@ -357,14 +365,23 @@ app.get('/ventas-por-semana', async (req, res) => {
         semana,
         MIN(inicio) AS inicio_semana,
         MAX(fin) AS fin_semana,
-        SUM(total_semana) AS total_semana,
-        COUNT(*) AS cantidad_ventas
+        SUM(CASE WHEN venta_id NOT IN (
+          SELECT v.id FROM ventas v
+          JOIN detalle_venta dv ON dv.venta_id = v.id
+          WHERE dv.producto = 'recarga'
+        ) THEN total_semana ELSE 0 END) AS total_semana,
+        COUNT(CASE WHEN venta_id NOT IN (
+          SELECT v.id FROM ventas v
+          JOIN detalle_venta dv ON dv.venta_id = v.id
+          WHERE dv.producto = 'recarga'
+        ) THEN venta_id ELSE NULL END) AS cantidad_ventas
       FROM (
         SELECT 
           YEAR(fecha) AS anio,
           WEEK(fecha, 1) AS semana,
           DATE(fecha) AS inicio,
           DATE(fecha) AS fin,
+          id AS venta_id,
           total AS total_semana
         FROM ventas
       ) AS sub
@@ -386,12 +403,21 @@ app.get('/ventas-por-mes', async (req, res) => {
         anio,
         mes_numero,
         CONCAT(MONTHNAME(STR_TO_DATE(mes_numero, '%m')), ' ', anio) AS mes_nombre,
-        SUM(total) AS total_mes,
-        COUNT(*) AS cantidad_ventas
+        SUM(CASE WHEN venta_id NOT IN (
+          SELECT v.id FROM ventas v
+          JOIN detalle_venta dv ON dv.venta_id = v.id
+          WHERE dv.producto = 'recarga'
+        ) THEN total ELSE 0 END) AS total_mes,
+        COUNT(CASE WHEN venta_id NOT IN (
+          SELECT v.id FROM ventas v
+          JOIN detalle_venta dv ON dv.venta_id = v.id
+          WHERE dv.producto = 'recarga'
+        ) THEN venta_id ELSE NULL END) AS cantidad_ventas
       FROM (
         SELECT 
           YEAR(fecha) AS anio,
           MONTH(fecha) AS mes_numero,
+          id AS venta_id,
           total
         FROM ventas
       ) AS sub
@@ -412,8 +438,8 @@ app.get('/ventas-por-categoria', async (req, res) => {
       SELECT 
         c.id,
         c.nombre AS categoria,
-        SUM(v.total) AS total_categoria,
-        COUNT(v.id) AS cantidad_ventas
+        SUM(CASE WHEN dv.producto != 'recarga' THEN v.total ELSE 0 END) AS total_categoria,
+        COUNT(CASE WHEN dv.producto != 'recarga' THEN v.id ELSE NULL END) AS cantidad_ventas
       FROM ventas v
       JOIN detalle_venta dv ON dv.venta_id = v.id
       JOIN producto p ON dv.producto = p.ean
@@ -434,8 +460,8 @@ app.get('/ganancia-por-categoria', async (req, res) => {
       SELECT 
         c.id AS categoria_id,
         c.nombre AS categoria,
-        SUM((dv.precio_unitario - co.precio_compra) * dv.cantidad) AS ganancia_total,
-        COUNT(DISTINCT dv.venta_id) AS cantidad_ventas
+        SUM(CASE WHEN dv.producto != 'recarga' THEN (dv.precio_unitario - co.precio_compra) * dv.cantidad ELSE 0 END) AS ganancia_total,
+        COUNT(DISTINCT CASE WHEN dv.producto != 'recarga' THEN dv.venta_id ELSE NULL END) AS cantidad_ventas
       FROM detalle_venta dv
       JOIN producto p ON dv.producto = p.ean
       JOIN categoria c ON p.categoriaId = c.id
