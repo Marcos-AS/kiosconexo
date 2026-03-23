@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Valor de Stock por Sección</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body { background: #f7f7f7; }
+        .container { max-width: 900px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 32px; }
+        h1 { color: #0066cc; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 24px; background: #fff; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid #e0e0e0; text-align: left; }
+        th { background: #0066cc; color: #fff; }
+        tr:last-child td { border-bottom: none; }
+        .total { font-weight: bold; color: #2e7d32; }
+        .seccion { font-weight: bold; color: #1565c0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Valor de Stock por Sección</h1>
+        <div style="margin-bottom: 18px;">
+            <span style="font-size:1.2rem; font-weight:700; color:#2e7d32;">Total global en stock: </span>
+            <span id="totalGlobal" style="font-size:1.2rem; font-weight:700; color:#2e7d32;">$0.00</span>
+        </div>
+        <label for="selectorSeccion">Sección:</label>
+        <select id="selectorSeccion">
+            <option value="cigarrillos">Cigarrillos</option>
+            <option value="heladera-blanca">Heladera Blanca</option>
+            <option value="heladera-coca-cola">Heladera Coca Cola</option>
+            <option value="mostrador-golosinas">Mostrador Golosinas</option>
+            <option value="mostrador-chocolates">Mostrador Chocolates</option>
+            <option value="isla-galletas">Isla Galletas</option>
+            <option value="estanteria-snacks">Estantería Snacks</option>
+        </select>
+        <table id="tablaStock">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Stock</th>
+                    <th>Precio Venta</th>
+                    <th>Valor Total</th>
+                </tr>
+            </thead>
+            <tbody id="tbodyStock"></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="total">Total en sección</td>
+                    <td class="total" id="totalSeccion">$0.00</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <script>
+        const nombresSeccion = {
+            'cigarrillos': 'Cigarrillos',
+            'heladera-blanca': 'Heladera Blanca',
+            'heladera-coca-cola': 'Heladera Coca Cola',
+            'mostrador-golosinas': 'Mostrador Golosinas',
+            'mostrador-chocolates': 'Mostrador Chocolates',
+            'isla-galletas': 'Isla Galletas',
+            'estanteria-snacks': 'Estantería Snacks'
+        };
+
+
+        async function cargarStockSeccion(seccion) {
+            const tbody = document.getElementById('tbodyStock');
+            const totalTd = document.getElementById('totalSeccion');
+            tbody.innerHTML = '<tr><td colspan="4">Cargando...</td></tr>';
+            totalTd.textContent = '';
+            try {
+                const res = await fetch(`/stock-seccion/${seccion}`);
+                const productos = await res.json();
+                let total = 0;
+                tbody.innerHTML = productos.map(prod => {
+                    const valor = (prod.stock || 0) * (prod.precio_venta || 0);
+                    total += valor;
+                    return `<tr><td>${prod.nombre}</td><td>${prod.stock}</td><td>$${Number(prod.precio_venta).toFixed(2)}</td><td>$${valor.toFixed(2)}</td></tr>`;
+                }).join('');
+                if (productos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4">No hay productos en esta sección.</td></tr>';
+                }
+                totalTd.textContent = `$${total.toFixed(2)}`;
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4">Error al cargar datos.</td></tr>';
+                totalTd.textContent = '';
+            }
+        }
+
+        async function cargarTotalGlobal() {
+            const secciones = [
+                'cigarrillos',
+                'heladera-blanca',
+                'heladera-coca-cola',
+                'mostrador-golosinas',
+                'mostrador-chocolates',
+                'isla-galletas',
+                'estanteria-snacks'
+            ];
+            let totalGlobal = 0;
+            for (const seccion of secciones) {
+                try {
+                    const res = await fetch(`/stock-seccion/${seccion}`);
+                    const productos = await res.json();
+                    for (const prod of productos) {
+                        totalGlobal += (prod.stock || 0) * (prod.precio_venta || 0);
+                    }
+                } catch (e) {
+                    // Si falla una sección, sigue con las demás
+                }
+            }
+            document.getElementById('totalGlobal').textContent = `$${totalGlobal.toFixed(2)}`;
+        }
+
+        document.getElementById('selectorSeccion').addEventListener('change', function() {
+            cargarStockSeccion(this.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarStockSeccion(document.getElementById('selectorSeccion').value);
+            cargarTotalGlobal();
+        });
+    </script>
+</body>
+</html>
