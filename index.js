@@ -6,6 +6,7 @@ require('./js/compras');
 require('./js/decomisaciones');
 require('./js/marcas');
 require('./js/productos');
+require('./js/productos_seguimiento');
 require('./js/promociones');
 require('./js/proveedores');
 

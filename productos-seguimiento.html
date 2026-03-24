@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Productos a Seguir</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <h1>Productos a Seguir</h1>
+    <form id="form-seguimiento">
+        <input type="text" id="producto_ean" placeholder="EAN o nombre del producto" list="productos-list" autocomplete="off" autofocus required>
+        <datalist id="productos-list"></datalist>
+        <button type="submit">Agregar producto</button>
+    </form>
+    <h2>Lista de productos a seguir</h2>
+    <table id="tabla-seguimiento" style="border-collapse: collapse; width: 100%;">
+        <thead>
+            <tr>
+                <th style="border: 1px solid #333;">EAN</th>
+                <th style="border: 1px solid #333;">Nombre</th>
+                <th style="border: 1px solid #333;">Stock</th>
+                <th style="border: 1px solid #333;">Precio Compra</th>
+                <th style="border: 1px solid #333;">Lugares de compra</th>
+                <th style="border: 1px solid #333;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Productos cargados aquí -->
+        </tbody>
+    </table>
+    <script src="js/seguimiento.js"></script>
+</body>
+</html>

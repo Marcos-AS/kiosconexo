@@ -92,6 +92,14 @@ delete from producto where ean = "7891000405291";
 
 SHOW VARIABLES LIKE 'datadir';
 
+-- Tabla simplificada para productos a seguir
+CREATE TABLE IF NOT EXISTS productos_seguimiento (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    producto_ean CHAR(13) NOT NULL,
+    UNIQUE KEY (producto_ean),
+    FOREIGN KEY (producto_ean) REFERENCES producto(ean)
+);
+
 -- Tabla para almacenar la disposición de cigarrillos en mostradores
 -- CREATE TABLE disposicion_cigarrillos (
 --     id INT AUTO_INCREMENT PRIMARY KEY,
