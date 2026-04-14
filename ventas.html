@@ -36,6 +36,7 @@
                 <option value="cuenta_dni">Cuenta DNI</option>
                 <option value="debito">Débito</option>
                 <option value="credito">Crédito</option>
+                <option value="cred_getnet">Credito Getnet</option>
                 <option value="otros">Otros</option> <!-- Nueva opción -->
             </select>
             <button id="registrarVenta">REGISTRAR VENTA</button>
@@ -344,6 +345,9 @@ function renderDetalle() {
     } else if (medioPago === 'credito') {
         totalConDescuento = +(total * (1 - 0.0531)).toFixed(2);
         document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 5,31% desc.)";
+    } else if (medioPago === 'cred_getnet') {
+        totalConDescuento = +(total * (1 - 0.0242)).toFixed(2);
+        document.getElementById('totalVenta').textContent = totalConDescuento.toFixed(2) + " (con 2,42% desc.)";
     } else {
         document.getElementById('totalVenta').textContent = total.toFixed(2);
     }
@@ -478,6 +482,9 @@ async function cargarVentasRealizadas() {
             totalNeto = totalBruto - comision;
         } else if (venta.medio_pago === 'credito') {
             comision = totalBruto * 0.0531;
+            totalNeto = totalBruto - comision;
+        } else if (venta.medio_pago === 'cred_getnet') {
+            comision = totalBruto * 0.0242;
             totalNeto = totalBruto - comision;
         } else {
             totalNeto = totalBruto;
@@ -889,13 +896,15 @@ async function cargarTotalesPorMedioPago() {
             totalVenta = +(totalVenta * (1 - 0.0097)).toFixed(2);
         } else if (medio === 'cuenta_dni') {
             totalVenta = +(totalVenta * (1 - 0.006)).toFixed(2);
+        } else if (medio === 'cred_getnet') {
+            totalVenta = +(totalVenta * (1 - 0.0242)).toFixed(2);
         }
         medios[medio].total += totalVenta;
         medios[medio].ventas.push(v);
     });
 
     // Orden de medios de pago
-    const orden = ['efectivo', 'transf', 'qr', 'cuenta_dni', 'debito', 'credito', 'otros'];
+    const orden = ['efectivo', 'transf', 'qr', 'cuenta_dni', 'debito', 'credito', 'cred_getnet', 'otros'];
     const nombres = {
         efectivo: 'Efectivo',
         transf: 'Transferencia',
@@ -903,6 +912,7 @@ async function cargarTotalesPorMedioPago() {
         cuenta_dni: 'Cuenta DNI',
         debito: 'Débito',
         credito: 'Crédito',
+        cred_getnet: 'Credito Getnet',
         otros: 'Otros'
     };
 

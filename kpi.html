@@ -709,6 +709,7 @@ async function cargarTotalesYDiferencia() {
         else if (venta.medio_pago === 'qr') tasa = 0.0097;
         else if (venta.medio_pago === 'cuenta_dni') tasa = 0.006;
         else if (venta.medio_pago === 'credito') tasa = 0.0531;
+        else if (venta.medio_pago === 'cred_getnet') tasa = 0.0242;
 
         const comisionVenta = totalBrutoVenta * tasa;
 
