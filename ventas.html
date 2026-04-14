@@ -37,6 +37,8 @@
                 <option value="debito">Débito</option>
                 <option value="credito">Crédito</option>
                 <option value="cred_getnet">Credito Getnet</option>
+                <option value="deb_getnet">Débito Getnet</option>
+                <option value="qr_getnet">QR Getnet</option>
                 <option value="otros">Otros</option> <!-- Nueva opción -->
             </select>
             <button id="registrarVenta">REGISTRAR VENTA</button>
@@ -904,7 +906,7 @@ async function cargarTotalesPorMedioPago() {
     });
 
     // Orden de medios de pago
-    const orden = ['efectivo', 'transf', 'qr', 'cuenta_dni', 'debito', 'credito', 'cred_getnet', 'otros'];
+    const orden = ['efectivo', 'transf', 'qr', 'cuenta_dni', 'debito', 'credito', 'cred_getnet', 'deb_getnet', 'qr_getnet', 'otros'];
     const nombres = {
         efectivo: 'Efectivo',
         transf: 'Transferencia',
@@ -913,6 +915,8 @@ async function cargarTotalesPorMedioPago() {
         debito: 'Débito',
         credito: 'Crédito',
         cred_getnet: 'Credito Getnet',
+        deb_getnet: 'Débito Getnet',
+        qr_getnet: 'QR Getnet',
         otros: 'Otros'
     };
 
