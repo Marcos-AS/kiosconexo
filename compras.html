@@ -112,7 +112,8 @@ async function cargarCompras() {
     const tbody = document.getElementById('comprasRecientes');
     tbody.innerHTML = '';
 
-    const hoy = new Date().toISOString().split('T')[0];
+    //const hoy = new Date().toISOString().split('T')[0];
+    const hoy = getFechaLocal();
     let totalHoy = 0;
 
     // Acumulador por proveedor SOLO para hoy
@@ -168,6 +169,18 @@ async function cargarCompras() {
         Object.entries(totalesPorProveedor)
             .map(([prov, total]) => `${prov}: $${total.toFixed(2)}`)
             .join('<br>');
+}
+
+function getFechaLocal() {
+    // Obtiene la fecha en zona horaria Argentina (GMT-3)
+    const ahora = new Date();
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    })
+    return formatter.format(ahora);    
 }
 
 async function guardarPrecioCompra(button) {
@@ -333,7 +346,7 @@ document.getElementById('agregarCompra').onclick = async function() {
         }
 
         // Establecer fecha actual por defecto
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = getFechaLocal();
         document.getElementById('fechaCompra').value = hoy;
     });
 
